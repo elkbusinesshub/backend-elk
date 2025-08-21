@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.elkbusinesshub.elk",
+      "sha256_cert_fingerprints": [
+   "C8:6E:28:41:31:C6:F3:DF:F9:F1:6E:7B:FC:95:12:D2:8A:17:22:D3:3C:77:AB:FF:BF:4A:7C:CA:6D:03:FE:7D"
+      ]
+    }
+  }
+]
