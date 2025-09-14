@@ -1,7 +1,40 @@
 
+const {responseStatusCodes, messages} = require("./appConstants")
 const { PutObjectCommand, S3Client, GetObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 
+
 require('dotenv').config();
+
+const createErrorResponse = (message, statusCode = responseStatusCodes.badRequest, data, success=false ) => {
+    return {success, statusCode, message, data}
+}
+
+const createSuccessResponse = (message, statusCode = responseStatusCodes.success, data, success=true ) => {
+    return {success, statusCode, message, data}
+}
+
+const globalResponseHandler = (req,res,next) => {
+    try{
+        if(!req?.body) req.body = {};
+        res.success = (message, data, statusCode) => res.status(statusCode || responseStatusCodes.success).json(createSuccessResponse(message, data, statusCode));
+        res.error = (message, data, statusCode) => res.status(statusCode || responseStatusCodes.badRequest).json(createErrorResponse(message, data, statusCode));
+        return next();
+
+
+    }catch(error){ return res.status(statusCode || responseStatusCodes.internalServerError).json(createErrorResponse(error.message, data, statusCode)); }
+}
+
+const unknownRouteHandler = (req, res) => res.error(messages.urlNotFound, responseStatusCodes.notFound);
+const globalErrorHandler =  (err, req, res, next) => res.status(responseStatusCodes.internalServerError).json(createErrorResponse(err?.message || messages.somethingwentWrong));
+
+const unhandledErrorHandler = (error) => {
+    console.log("====== Unhandled Error ====");
+    console.log({
+        message: error?.message || String(error),
+        stack: JSON.stringify(error?.stack)
+    });
+    console.log("=========================")
+}
 
 const s3 = new S3Client({
     region: process.env.BUCKET_REGION,
@@ -161,6 +194,12 @@ function formatPagination({ page, perPage, total, path }) {
 }
 
 module.exports = {
+    globalResponseHandler,
+    globalErrorHandler,
+    unhandledErrorHandler,
+    unknownRouteHandler,
+    createErrorResponse,
+    createSuccessResponse,
     getImageUrl,
     deleteImageFromS3,
     uploadToS3,

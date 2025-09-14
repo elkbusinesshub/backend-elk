@@ -1,25 +1,30 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const userRoutes = require('./routes/userRoutes');
-const sequelize = require('./config/db');
-require('dotenv').config();
-const cors = require('cors');
+const express = require("express");
+const bodyParser = require("body-parser");
+const userRoutes = require("./routes/userRoutes");
+const sequelize = require("./config/db");
+require("dotenv").config();
+const utils = require("./helpers/utils");
+const cors = require("cors");
 const app = express();
-const path = require('path')
-const chatController = require('./modules/chat/controller/chat.controller');
-const socketIo = require('socket.io');
-const http = require('http');
-const ChatRoom = require('./models/chatRoom.model');
-const ChatMessage = require('./models/chatMessage.model');
-const { Op } = require('sequelize');
+const path = require("path");
+const chatController = require("./modules/chat/controller/chat.controller");
+const socketIo = require("socket.io");
+const http = require("http");
+const ChatRoom = require("./models/chatRoom.model");
+const ChatMessage = require("./models/chatMessage.model");
+const { Op } = require("sequelize");
 const server = http.createServer(app);
 // const admin = require("firebase-admin");
-const {responseStatusCodes} = require("./helpers/appConstants");
+const { responseStatusCodes } = require("./helpers/appConstants");
+
+//Global Error Handler
+process.on("uncaughtException", utils.unhandledErrorHandler);
+process.on("unhandledRejection", utils.unhandledErrorHandler);
 
 const io = socketIo(server, {
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 });
 
 // const serviceAccount = require("./firebaseServiceAccountKey.json");
@@ -28,46 +33,56 @@ const io = socketIo(server, {
 // });
 
 const port = process.env.PORT || 3000;
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-app.use(bodyParser.json());
-app.use('/api', userRoutes);
-app.use('/.well-known', express.static(path.join(__dirname, '.well-known')));
-app.get('/', (req, res) => {
-  res.send('Welcome to the Node.js MySQL API');
-}); 
+// app.use(bodyParser.json());
+app.use(express.json({ limit: "100mb" }));
+app.use(utils.globalResponseHandler);
+app.use("/.well-known", express.static(path.join(__dirname, ".well-known")));
+app.use(express.urlencoded({ extended: true }));
+app.use(utils.unknownRouteHandler);
+app.use(utils.globalErrorHandler);
+app.get("/", (req, res) => {
+  res.send("Welcome to the Node.js MySQL API");
+});
 
-sequelize.sync({ alter: false })
+app.use("/api", userRoutes);
+// require("./routes/index")(app);
+
+sequelize
+  .sync({ alter: false })
   .then(() => {
-    console.log('Database synced successfully!');
+    console.log("Database synced successfully!");
     server.listen(port, () => {
       console.log(`Server running on http://localhost:${port}`);
     });
-  }) 
-  .catch(err => {
-    console.error('Error syncing database:', err);
+  })
+  .catch((err) => {
+    console.error("Error syncing database:", err);
   });
 
-io.on('connection', (socket) => {
-  var socketUsers=[];
-  console.log('A user connected',socket.id);
-  socket.on('register', (authUserId) => {
+io.on("connection", (socket) => {
+  var socketUsers = [];
+  console.log("A user connected", socket.id);
+  socket.on("register", (authUserId) => {
     console.log(`Register called`);
     if (authUserId) {
       socketUsers.push({ socketId: socket.id, authUserId });
       console.log(`User ${authUserId} connected`);
-      console.log('Current connected users:', socketUsers);
+      console.log("Current connected users:", socketUsers);
     }
   });
 
-  socket.on('sendMessage', async (messageData) => {
+  socket.on("sendMessage", async (messageData) => {
     try {
-      if (messageData.file) {        
-        const fileBuffer = Buffer.from(messageData.file, 'base64');
+      if (messageData.file) {
+        const fileBuffer = Buffer.from(messageData.file, "base64");
         const fileMimeType = messageData.fileType;
         await chatController.addChat(
           {
@@ -76,33 +91,35 @@ io.on('connection', (socket) => {
               userId: messageData.userId,
               message: messageData.message,
               type: messageData.type,
-              file_name:messageData.file_name,
-              ad_id:messageData.ad_id,
-              ad_name:messageData.ad_name,
-              status: messageData.status
+              file_name: messageData.file_name,
+              ad_id: messageData.ad_id,
+              ad_name: messageData.ad_name,
+              status: messageData.status,
             },
             file: {
               buffer: fileBuffer,
-              originalname: 'filename.ext',
+              originalname: "filename.ext",
               mimetype: fileMimeType,
             },
           },
-          { 
-            status: (code) => ({ 
-              json: async(result) => {
-                if(code==responseStatusCodes.success){
+          {
+            status: (code) => ({
+              json: async (result) => {
+                if (code == responseStatusCodes.success) {
                   try {
-                    const data = await chatController.fetchChatRooms(messageData.authUserId);
-                    socket.emit('chatRooms', data);
+                    const data = await chatController.fetchChatRooms(
+                      messageData.authUserId
+                    );
+                    socket.emit("chatRooms", data);
                   } catch (error) {
-                    console.error('Error fetching chat rooms:', error);
-                    socket.emit('chatRooms', []);
+                    console.error("Error fetching chat rooms:", error);
+                    socket.emit("chatRooms", []);
                   }
-                  io.emit('newMessage', result['data']);
-                  io.emit('readMessage', result['data']);
+                  io.emit("newMessage", result["data"]);
+                  io.emit("readMessage", result["data"]);
                 }
-              } 
-            }) 
+              },
+            }),
           }
         );
       } else {
@@ -113,75 +130,76 @@ io.on('connection', (socket) => {
               userId: messageData.userId,
               message: messageData.message,
               type: messageData.type,
-              file_name: '',
-              ad_id:messageData.ad_id,
-              ad_name:messageData.ad_name,
-              status: messageData.status
-            }
+              file_name: "",
+              ad_id: messageData.ad_id,
+              ad_name: messageData.ad_name,
+              status: messageData.status,
+            },
           },
           {
-            status: (code) => ({ 
+            status: (code) => ({
               json: async (result) => {
-                if(code==responseStatusCodes.success){
+                if (code == responseStatusCodes.success) {
                   try {
-                    const data = await chatController.fetchChatRooms(messageData.authUserId);
-                    socket.emit('chatRooms', data);
+                    const data = await chatController.fetchChatRooms(
+                      messageData.authUserId
+                    );
+                    socket.emit("chatRooms", data);
                   } catch (error) {
-                    console.error('Error fetching chat rooms:', error);
-                    socket.emit('chatRooms', []);
+                    console.error("Error fetching chat rooms:", error);
+                    socket.emit("chatRooms", []);
                   }
-                  io.emit('newMessage', result['data']);
-                  io.emit('readMessage', result['data']);
+                  io.emit("newMessage", result["data"]);
+                  io.emit("readMessage", result["data"]);
                 }
-              } 
-            }) 
+              },
+            }),
           }
         );
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error("Error sending message:", error);
     }
   });
 
-  socket.on('updateMessageStatus', async ({ authUserId, otherUserId }) => {
-    console.log('updateMessageStatus');
-    
+  socket.on("updateMessageStatus", async ({ authUserId, otherUserId }) => {
+    console.log("updateMessageStatus");
+
     try {
       await chatController.updateMessageStatus(authUserId, otherUserId);
     } catch (error) {
-      console.error('Error updating message status:', error);
+      console.error("Error updating message status:", error);
     }
   });
 
-  socket.on('getChatRooms',async (authUserId)=>{
+  socket.on("getChatRooms", async (authUserId) => {
     try {
       const data = await chatController.fetchChatRooms(authUserId);
-      socket.emit('chatRooms', data);
+      socket.emit("chatRooms", data);
     } catch (error) {
-      console.error('Error fetching chat rooms:', error);
-      socket.emit('chatRooms', []);
+      console.error("Error fetching chat rooms:", error);
+      socket.emit("chatRooms", []);
     }
   });
- 
+
   socket.on("requestChatRoomCount", async (authUserId) => {
     const count = await ChatRoom.count({
-        where: {
-            [Op.or]: [
-                { user1: authUserId },
-                { user2: authUserId }
-            ]
-        },
-        include: [{
+      where: {
+        [Op.or]: [{ user1: authUserId }, { user2: authUserId }],
+      },
+      include: [
+        {
           model: ChatMessage,
-          as: 'chat_messages',
-          where: { status: 'send',reciever_id: authUserId },
-        }],
+          as: "chat_messages",
+          where: { status: "send", reciever_id: authUserId },
+        },
+      ],
     });
     socket.emit("chatRoomCount", count);
   });
 
-  socket.on('disconnect', () => {
-    socketUsers = socketUsers.filter(user => user.socketId !== socket.id);
-    console.log('A user disconnected',socketUsers);
+  socket.on("disconnect", () => {
+    socketUsers = socketUsers.filter((user) => user.socketId !== socket.id);
+    console.log("A user disconnected", socketUsers);
   });
 });

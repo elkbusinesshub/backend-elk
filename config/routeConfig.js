@@ -1,8 +1,8 @@
 module.exports = [
     {
-        name: "",
-        path: "",
+        name: "Admin",
+        path: "admin",
         version: "v1",
-        route: ""
+        route: "admin"
     }
 ];
