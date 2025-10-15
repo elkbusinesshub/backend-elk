@@ -12,6 +12,7 @@ router.get(
 );
 router.delete(
   "/delete-ad",
+ validation.deleteAdminAdValidation,
   adminController.deleteAdminAd
 );
 router.get(
@@ -21,7 +22,7 @@ router.get(
 router.get(
   "/get-users",
   adminController.getAllUsers
-);
+); 
 router.put(
   "/block_user",
   validation.blockUserByIdValidation,

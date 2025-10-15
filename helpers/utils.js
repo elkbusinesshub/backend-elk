@@ -1,6 +1,7 @@
 
 const {responseStatusCodes, messages} = require("./appConstants")
 const { PutObjectCommand, S3Client, GetObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 
 require('dotenv').config();
@@ -16,12 +17,12 @@ const createSuccessResponse = (message, statusCode = responseStatusCodes.success
 const globalResponseHandler = (req,res,next) => {
     try{
         if(!req?.body) req.body = {};
-        res.success = (message, data, statusCode) => res.status(statusCode || responseStatusCodes.success).json(createSuccessResponse(message, data, statusCode));
-        res.error = (message, data, statusCode) => res.status(statusCode || responseStatusCodes.badRequest).json(createErrorResponse(message, data, statusCode));
+        res.success = (message, data, statusCode) => res.status(statusCode || responseStatusCodes.success).json(createSuccessResponse(message, statusCode, data));
+        res.error = (message, data, statusCode) => res.status(statusCode || responseStatusCodes.badRequest).json(createErrorResponse(message, statusCode, data));
         return next();
 
 
-    }catch(error){ return res.status(statusCode || responseStatusCodes.internalServerError).json(createErrorResponse(error.message, data, statusCode)); }
+    }catch(error){ return res.status(statusCode || responseStatusCodes.internalServerError).json(createErrorResponse(error.message,statusCode,  data )); }
 }
 
 const unknownRouteHandler = (req, res) => res.error(messages.urlNotFound, responseStatusCodes.notFound);

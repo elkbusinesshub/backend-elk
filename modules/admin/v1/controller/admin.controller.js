@@ -83,7 +83,7 @@ const getAdminAds = async (req, res, next) => {
   }
 };
 
-const getAllUsers = async (req, res) => {
+const getAllUsers = async (req, res, next) => {
   try {
     const users = await User.findAll();
     const usersWithProfileUrls = await Promise.all(
@@ -141,12 +141,16 @@ const deleteAdminAd = async (req, res) => {
     //     .status(responseStatusCodes.badRequest)
     //     .json({ success: false, message: "Ad ID is required" });
     // }
-    const ad = await Ad.findOne(
-      { ad_id: id },
-      {
-        include: [{ model: AdImage, as: "ad_images" }],
-      }
-    );
+    // const ad = await Ad.findOne(
+    //   { ad_id: id },
+    //   {
+    //     include: [{ model: AdImage, as: "ad_images" }],
+    //   }
+    // );
+    const ad = await Ad.findOne({
+      where: { ad_id: id },
+      include: [{ model: AdImage, as: "ad_images" }],
+    });
     if (!ad) {
       // return res
       //   .status(responseStatusCodes.notFound)

@@ -1,6 +1,5 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const userRoutes = require("./routes/userRoutes");
 const sequelize = require("./config/db");
 require("dotenv").config();
 const utils = require("./helpers/utils");
@@ -46,14 +45,16 @@ app.use(express.json({ limit: "100mb" }));
 app.use(utils.globalResponseHandler);
 app.use("/.well-known", express.static(path.join(__dirname, ".well-known")));
 app.use(express.urlencoded({ extended: true }));
-app.use(utils.unknownRouteHandler);
-app.use(utils.globalErrorHandler);
+
 app.get("/", (req, res) => {
   res.send("Welcome to the Node.js MySQL API");
 });
 
-app.use("/api", userRoutes);
-// require("./routes/index")(app);
+// app.use("/api", userRoutes);
+require("./routes/index")(app);
+
+app.use(utils.unknownRouteHandler);
+app.use(utils.globalErrorHandler);
 
 sequelize
   .sync({ alter: false })

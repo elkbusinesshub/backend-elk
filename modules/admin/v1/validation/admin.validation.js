@@ -6,7 +6,7 @@ module.exports = {
 
             const schema = joi.object({
                 date: joi.date().optional(),
-                loaction: joi.string().optional()
+                location: joi.string().optional()
             });
 
             await schema.validateAsync(req.query);
@@ -18,7 +18,7 @@ module.exports = {
         try{
 
             const schema = joi.object({
-                id: joi.number().required()
+                id: joi.string().required()
             });
 
             await schema.validateAsync(req.query);
