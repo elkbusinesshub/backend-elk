@@ -113,32 +113,6 @@
 // );
 // router.get("/user_wishlists", authenticateToken, userController.userWishlists);
 
-// // //admin
-// // router.get(
-// //   "/get-admin-ads",
-// //   adminValidation.validateGetAdminAds,
-// //   adminController.getAdminAds
-// // );
-// // router.delete(
-// //   "/delete-ad",
-// //   adminValidation.validateDeleteAdminAd,
-// //   adminController.deleteAdminAd
-// // );
-// // router.get(
-// //   "/get-ad-locations",
-// //   adminValidation.validateGetAdLocations,
-// //   adminController.getAllAdLocations
-// // );
-// // router.get(
-// //   "/get-users",
-// //   adminValidation.validateGetUsers,
-// //   adminController.getAllUsers
-// // );
-// // router.put(
-// //   "/block_user",
-// //   adminValidation.validateBlockUserById,
-// //   adminController.blockUserById
-// // );
 
 // //place
 // router.post("/get_place", validateGetPlace, placeController.getPlace);
@@ -264,8 +238,7 @@
 // );
 // router.delete("/clear_all", commonController.clearDatabase);
 
-// //
-// router.post("/send_token_notification", () => {});
+
 // router.get("/blocked-users", async (req, res) => {
 //   try {
 //     const blockedUsers = await BlockedUser.findAll();
@@ -319,6 +292,7 @@ const routeConfig = require("../config/routeConfig");
 const express = require("express");
 const router = express.Router();
 routeConfig.forEach((route)=>{
+  console.log(`/api/${route.version}/${route.route}`)
   router.use(`/api/${route.version}/${route.route}` ,require(`../modules/admin/v1/index`))
   
 

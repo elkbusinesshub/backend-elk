@@ -27,7 +27,21 @@ module.exports.messages = {
     userBlocked: "User blocked successfully.",
     adDeleted: "Ad deleted successfully.",
     adNotFound: "Ad not found",
-    adLocationsFetched: "Ad locations fetched successfully."
+    adLocationsFetched: "Ad locations fetched successfully.",
+
+    //common
+    priceCategoriesFetched: "Price Categories fetched successfully",
+    priceCategoriesExist: "Price Category already exist",
+    priceCategoriesAdded: "Price Category added successfully.",
+    priceCategoryNotFound: "Price Category not found.",
+    priceCategoryDeleted: "Price Category deleted successfully.",
+    databaseCleared: "Database cleared successfully.",
+    blockedUsersFetched: "Blocked users fetched successfully.",
+    phoneNumberExist: "Phone number already exist.",
+    phoneNumberNotExist: "Phone number does not exist"
+
+
+
 
 
     
