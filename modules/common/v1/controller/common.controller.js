@@ -1,19 +1,19 @@
-const AdCategory = require("../../../models/adCategory.model");
-const AdImage = require("../../../models/adImage.model");
-const AdLocation = require("../../../models/adLocation.model");
-const Ad = require("../../../models/ad.model");
-const AdPriceDetails = require("../../../models/adPriceDetails.model");
-const AdViews = require("../../../models/adView.model");
-const AdWishLists = require("../../../models/adWishList.model");
-const ChatMessage = require("../../../models/chatMessage.model");
-const ChatRoom = require("../../../models/chatRoom.model");
-const ContactView = require("../../../models/contactView.model");
-const Otp = require("../../../models/otp.model");
-const Place = require("../../../models/place.model");
-const PriceCategory = require("../../../models/priceCategory.model");
-const SearchCategory = require("../../../models/searchCategory.model");
-const User = require("../../../models/user.model");
-const UserSearch = require("../../../models/userSearch.model");
+const AdCategory = require("../../../../models/adCategory.model")
+const AdImage = require("../../../../models/adImage.model");
+const AdLocation = require("../../../../models/adLocation.model");
+const Ad = require("../../../../models/ad.model");
+const AdPriceDetails = require("../../../../models/adPriceDetails.model");
+const AdViews = require("../../../../models/adView.model");
+const AdWishLists = require("../../../../models/adWishList.model");
+const ChatMessage = require("../../../../models/chatMessage.model");
+const ChatRoom = require("../../../../models/chatRoom.model");
+const ContactView = require("../../../../models/contactView.model");
+const Otp = require("../../../../models/otp.model");
+const Place = require("../../../../models/place.model");
+const PriceCategory = require("../../../../models/priceCategory.model");
+const SearchCategory = require("../../../../models/searchCategory.model");
+const User = require("../../../../models/user.model");
+const UserSearch = require("../../../../models/userSearch.model");
 const {
   responseStatusCodes,
   messages,
@@ -136,7 +136,7 @@ const validatePhoneNumber = async (req, res) => {
 
 module.exports = {
   validatePhoneNumber,
-  getAllUsers,
+  // getAllUsers,
   getBlockedUsers,
   deletePriceCategories,
   priceCategories,

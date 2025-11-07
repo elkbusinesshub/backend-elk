@@ -1,51 +1,60 @@
 module.exports.responseStatusCodes = {
-    success: 200,
-    created: 201,
-    unAuthorized: 401,
-    forbidden: 403,
-    badRequest: 400,
-    notFound: 404,
-    internalServerError: 500
+  success: 200,
+  created: 201,
+  unAuthorized: 401,
+  forbidden: 403,
+  badRequest: 400,
+  notFound: 404,
+  internalServerError: 500,
 };
 
 module.exports.messages = {
+  //server messages
+  urlNotFound: "The resource you are looking for could not be found.",
+  somethingwentWrong: "Something went wrong, Please try again.",
 
-    //server messages
-    urlNotFound: "The resource you are looking for could not be found.",
-    somethingwentWrong: "Something went wrong, Please try again.",
+  //auth
+  loginSessionExpired: "Login Session has been expired. Please login again.",
+  accountBlocked: "Your Account has been blocked.",
 
-    //auth
-    loginSessionExpired: "Login Session has been expired. Please login again.",
-    accountBlocked:  "Your Account has been blocked.",
+  //user
+  userNotFound: " User not Found.",
 
-    //user
-    userNotFound: " User not Found.",
+  //admin
+  adminAdsFetched: "Admin ads fetched successfully.",
+  allUsersFetched: "All users fetched successfully.",
+  userBlocked: "User blocked successfully.",
+  adDeleted: "Ad deleted successfully.",
+  adNotFound: "Ad not found",
+  adLocationsFetched: "Ad locations fetched successfully.",
 
-    //admin
-    adminAdsFetched: "Admin ads fetched successfully.",
-    allUsersFetched: "All users fetched successfully.",
-    userBlocked: "User blocked successfully.",
-    adDeleted: "Ad deleted successfully.",
-    adNotFound: "Ad not found",
-    adLocationsFetched: "Ad locations fetched successfully.",
+  //common
+  priceCategoriesFetched: "Price Categories fetched successfully",
+  priceCategoriesExist: "Price Category already exist",
+  priceCategoriesAdded: "Price Category added successfully.",
+  priceCategoryNotFound: "Price Category not found.",
+  priceCategoryDeleted: "Price Category deleted successfully.",
+  databaseCleared: "Database cleared successfully.",
+  blockedUsersFetched: "Blocked users fetched successfully.",
+  phoneNumberExist: "Phone number already exist.",
+  phoneNumberNotExist: "Phone number does not exist",
 
-    //common
-    priceCategoriesFetched: "Price Categories fetched successfully",
-    priceCategoriesExist: "Price Category already exist",
-    priceCategoriesAdded: "Price Category added successfully.",
-    priceCategoryNotFound: "Price Category not found.",
-    priceCategoryDeleted: "Price Category deleted successfully.",
-    databaseCleared: "Database cleared successfully.",
-    blockedUsersFetched: "Blocked users fetched successfully.",
-    phoneNumberExist: "Phone number already exist.",
-    phoneNumberNotExist: "Phone number does not exist"
+  //users
+  otpSend: "Otp send successfully",
+  otpNotFound: "OTP not found",
+  otpExpired: "OTP exppired",
+  userLogged: "User logged successfully",
+  userRegistered: "User registrated successfully",
+  userNotFound: "User not found",
+  userDetails: "User details fetched successfully",
+  profileUpdateFailed: "Profile update failed.",
+  profileUpdateSuccessfully: "Profile updated successfully.",
+  mobileUpdated: " Phone number updated successfully",  
+  emailUpdated: "Email updated successfully",
+  userDeleted: "Account deleted successfully",
+  tokenUpdated: "Token updated successfully",
+  userWishlistFetched: "User wishlist fetched successfully",
+  wishlistRemoved: "Wishlist removed successfully",
+  wishlistAlreadyRemoved: "Wishlist already removed successfully",
 
-
-
-
-
-    
-
-
-    
 };

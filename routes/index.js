@@ -34,86 +34,6 @@
 // const userValidation = require("../modules/user/validation/user.validation");
 // const validators = require("../modules/post/validation/post.validation");
 
-// //user
-// router.post(
-//   "/send_otp",
-//   userValidation.validateSendOtp,
-//   userController.sendOtp
-// );
-// router.post(
-//   "/verify_otp",
-//   userValidation.validateVerifyOtp,
-//   userController.verifyOtp
-// );
-// router.post(
-//   "/create_user",
-//   userValidation.validateCreateUser,
-//   userController.createUser
-// );
-// router.post(
-//   "/get_user",
-//   authenticateToken,
-//   userValidation.validateGetUserById,
-//   userController.getUserById
-// );
-// router.post(
-//   "/update_profile_pic",
-//   authenticateToken,
-//   userValidation.validateUpdateProfilePic,
-//   upload.single("file"),
-//   userController.updateProfilePic
-// );
-// router.post(
-//   "/verify_update_mobile",
-//   authenticateToken,
-//   userValidation.validateVerifyUpdateMobile,
-//   userController.verifyUpdateMobileOtp
-// );
-// router.post(
-//   "/update_email_or_mobile",
-//   authenticateToken,
-//   userValidation.validateUpdateEmailOrMobile,
-//   userController.updateEmailOrMobile
-// );
-// router.post(
-//   "/update_profile",
-//   authenticateToken,
-//   userValidation.validateUpdateProfile,
-//   userController.updateProfile
-// );
-// router.post(
-//   "/update_notification_token",
-//   authenticateToken,
-//   userValidation.validateUpdateNotificationToken,
-//   userController.updateNotificationToken
-// );
-// router.post(
-//   "/user_with_ads",
-//   authenticateToken,
-//   userValidation.validateUserWithAds,
-//   userController.userWithAds
-// );
-// router.post(
-//   "/remove_wishlist",
-//   authenticateToken,
-//   userValidation.validateRemoveWishlist,
-//   userController.removeWishlist
-// );
-// router.post(
-//   "/view_contact",
-//   authenticateToken,
-//   userValidation.validateViewContact,
-//   userController.viewContact
-// );
-// router.delete(
-//   "/delete_account",
-//   authenticateToken,
-//   userValidation.validateDeleteAccount,
-//   userController.deleteAccount
-// );
-// router.get("/user_wishlists", authenticateToken, userController.userWishlists);
-
-
 // //place
 // router.post("/get_place", validateGetPlace, placeController.getPlace);
 // router.post("/place_search", validatePlaceSearch, placeController.placeSearch);
@@ -293,7 +213,7 @@ const express = require("express");
 const router = express.Router();
 routeConfig.forEach((route)=>{
   console.log(`/api/${route.version}/${route.route}`)
-  router.use(`/api/${route.version}/${route.route}` ,require(`../modules/admin/v1/index`))
+  router.use(`/api/${route.version}/${route.route}` ,require(`../modules/${route.path}/v1/index`))
   
 
 });

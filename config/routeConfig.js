@@ -10,5 +10,11 @@ module.exports = [
         path: "common",
         version: "v1",
         route: "common"
+    },
+     {
+        name: "User",
+        path: "user",
+        version: "v1",
+        route: "user"
     }
 ];
