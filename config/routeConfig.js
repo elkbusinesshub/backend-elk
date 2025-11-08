@@ -16,5 +16,11 @@ module.exports = [
         path: "user",
         version: "v1",
         route: "user"
+    },
+    {
+        name: "Place",
+        path: "place",
+        version: "v1",
+        route: "place"
     }
 ];

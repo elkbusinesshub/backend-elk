@@ -34,10 +34,6 @@
 // const userValidation = require("../modules/user/validation/user.validation");
 // const validators = require("../modules/post/validation/post.validation");
 
-// //place
-// router.post("/get_place", validateGetPlace, placeController.getPlace);
-// router.post("/place_search", validatePlaceSearch, placeController.placeSearch);
-// router.post("/get_places", validateGetPlaces, placeController.getPlaces);
 
 // //post
 // router.post(

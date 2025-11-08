@@ -12,6 +12,7 @@ module.exports.messages = {
   //server messages
   urlNotFound: "The resource you are looking for could not be found.",
   somethingwentWrong: "Something went wrong, Please try again.",
+  invalidRequest: "Invalid Request",
 
   //auth
   loginSessionExpired: "Login Session has been expired. Please login again.",
@@ -56,5 +57,11 @@ module.exports.messages = {
   userWishlistFetched: "User wishlist fetched successfully",
   wishlistRemoved: "Wishlist removed successfully",
   wishlistAlreadyRemoved: "Wishlist already removed successfully",
+
+  //place
+  loactionDataFetched : "Location data fetched successfully.",
+  locationNotFound: "Location not available" ,
+  placeFound: "Place found successfully",
+  placeNotFound: "No place found",
 
 };
