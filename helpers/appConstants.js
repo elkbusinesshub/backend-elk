@@ -1,4 +1,5 @@
-module.exports.responseStatusCodes = {
+module.exports.
+responseStatusCodes = {
   success: 200,
   created: 201,
   unAuthorized: 401,
@@ -63,5 +64,65 @@ module.exports.messages = {
   locationNotFound: "Location not available" ,
   placeFound: "Place found successfully",
   placeNotFound: "No place found",
+
+  //ad
+  adCreated: "Ad created successfully.",
+  adNotFound: "Ad not found",
+  imageUploadFailed: "File upload failed",
+  imageUploadSuccess : " Image is uploaded successfully",
+  imageNotFound: "Ad Image not found",
+  imageDeleted: "Ad image deleted successfully",
+  adLocation: "Ad Location updated successfully",
+  adDeleted: "Ad deleted successfully",
+  adDetailFetched: "Ad details fetched Successfully",
+  myadsFetched: "My ads fetched successfully",
+  noUnsavedPost: "Recently there is no unsaved post",
+  unsavedAds: "Unsaved ad has been fetched successfully",
+  searchCategories: "Search categories has been fetched successfully",
+  recommentedPosts: "Recomended post has been fetched successfylly",
+  allAds: "All ads has been fetched successfully",
+  searchAds: "Search ads has been fetched successfully",
+  rentCategoryPosts: "Rent category post has been fetched successfully",
+  bestServiceProviders: "Best service providers has been fetched successfully",
+  adCategories: "Ad categories has been fetched successfully",
+  wishlistRemoved: "Ad has been removed from Wishlist successfully",
+  wishlistAdded: "Ad has been added to wishlist successfully",
+  adStatusChange: "Ad status has been updated successfully",
+
+  //chat
+  fileUploadFailed: "File Uplaod Failed",
+  chatAdded: "Chat message added successfully",
+  blockUser: "Blocked user successfully",
+  noBlockRecord: "No block record found",
+  userUnblocked:  "User unblocked successfully",
+  userBlocked : "User is blocked successfully",
+  userNotBlocked: "User is not blocked",
+  chatRoomNotFound: " Chat room not found",
+  chatRoomFound: "Chat messages retrieved successfully",
+  chatNotFound : "Chat message not found", 
+  usersChatDeleted: "Chat message deleted for user successfully",
+  deletedUserChat: "All chat messages deleted for user successfully",
+  chatRoomAlreadyDeleted: "chat Room already deleted",
+  chatRoomDeleted: "Chat room deleted successfully",
+  chatAlreadyDeleted : "Chat message already deleted",
+  chatDeleted : "Chat message deleted successfully",
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 };

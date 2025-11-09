@@ -22,5 +22,19 @@ module.exports = [
         path: "place",
         version: "v1",
         route: "place"
+    },
+    {
+        name: "Post",
+        path: "post",
+        version: "v1",
+        route: "post"
+
+    },
+    {
+        name: "Chat",
+        path: "chat",
+        version: "v1",
+        route: "chat"
+
     }
 ];
