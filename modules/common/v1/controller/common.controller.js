@@ -16,65 +16,55 @@ const User = require("../../../../models/user.model");
 const UserSearch = require("../../../../models/userSearch.model");
 const {
   responseStatusCodes,
-  messages,
+  responseMessages,
 } = require("../../../../helpers/appConstants");
-const BlockedUser = require("../../../../models/blockedUser.model");
 
-const priceCategories = async (req, res) => {
+exports.priceCategories = async (req, res) => {
   try {
     const priceCategories = await PriceCategory.findAll();
     const groupedCategories = priceCategories.reduce((group, item) => {
-      const category = item.category;
-      group[category] = group[category] || [];
-      group[category].push(item);
-      return group;
+        const category = item.category;
+        group[category] = group[category] || [];
+        group[category].push(item);
+        return group;
     }, {});
-    return res.success(messages.priceCategoriesFetched, groupedCategories);
+    res.status(responseStatusCodes.success).json(groupedCategories);
   } catch (error) {
-    console.error(error);
-    return next(error);
+    res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
   }
 };
-const addPriceCategories = async (req, res) => {
+exports.addPriceCategories = async (req, res) => {
   try {
-    const { category, title } = req.body;
-    const priceCategories = await PriceCategory.findOne({
-      where: { title: title, category: category },
-    });
-    if (priceCategories) {
-      return res.success(messages.priceCategoriesExist);
+    const {category, title} = req.body;
+    const priceCategories = await PriceCategory.findOne({where:{title:title,category:category}});
+    if(priceCategories){
+      return res.status(responseStatusCodes.success).json({ message: responseMessages.priceCategoriesExist });
     }
     await PriceCategory.create({
-      title: title,
-      category: category,
-    });
-    return res.success(messages.priceCategoriesAdded);
+      title:title,
+      category:category
+    })
+    return res.status(responseStatusCodes.success).json({ message: responseMessages.priceCategoriesAdded });
   } catch (error) {
-    console.error(error);
-    return next(error);
+    return res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
   }
 };
-const deletePriceCategories = async (req, res) => {
-  try {
-    const { category, title } = req.body;
-    const priceCategories = await PriceCategory.findOne({
-      where: { title: title, category: category },
-    });
-    if (!priceCategories) {
-      return res.success(messages.priceCategoryNotFound);
+exports.deletePriceCategories = async (req,res)=>{
+  try{
+    const {category, title}=req.body;
+    const priceCategories = await PriceCategory.findOne({where:{title:title,category:category}});
+    if(!priceCategories){
+      return res.status(responseStatusCodes.success).json({ message: responseMessages.priceCategoryNotFound });
     }
-    await PriceCategory.destroy({
-      where: { title: title, category: category },
-    });
-    return res.success(messages.priceCategoryDeleted);
-  } catch (error) {
-    console.error(error);
-    return next(error);
+    await PriceCategory.destroy({where:{title:title,category:category}});
+    return res.status(responseStatusCodes.success).json({ message: responseMessages.priceCategoryDeleted });
+  }catch(error){
+    return res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
   }
-};
+}
 
-const clearDatabase = async (req, res) => {
-  try {
+exports.clearDatabase = async (req, res)=>{
+  try{
     await AdLocation.drop();
     await AdImage.drop();
     await AdPriceDetails.drop();
@@ -93,53 +83,8 @@ const clearDatabase = async (req, res) => {
     await ChatRoom.drop();
     await User.drop();
     // await sequelize.drop();
-    return res.success(messages.databaseCleared);
-  } catch (error) {
-    console.error(error);
-    return next(error);
+    return res.status(responseStatusCodes.success).json({ message: responseMessages.databaseCleared });
+  }catch(e){
+    return res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
   }
-};
-
-const getBlockedUsers = async (req, res) => {
-  try {
-    const blockedUsers = await BlockedUser.findAll();
-    return res.success(messages.blockedUsersFetched, blockedUsers);
-  } catch (error) {
-    console.error(error);
-    return next(error);
-  }
-};
-
-// const getAllUsers = async (req, res) => {
-//   try {
-//     const blockedUsers = await User.findAll();
-//     res.status(responseStatusCodes.success).json(blockedUsers);
-//   } catch (error) {
-//     console.error("Error fetching blocked users:", error);
-//     return next(error);
-//   }
-// };
-
-const validatePhoneNumber = async (req, res) => {
-  try {
-    const { mobile_number } = req.params;
-    const user = await User.findOne({ where: { mobile_number } });
-    if (user) {
-      return res.success(messages.phoneNumberExist,{exist: true});
-    }
-    return res.success(messages.phoneNumberNotExist, {exist: false});
-  } catch (error) {
-    console.error("Error checking phone number:", error);
-    return next(error);
-  }
-};
-
-module.exports = {
-  validatePhoneNumber,
-  // getAllUsers,
-  getBlockedUsers,
-  deletePriceCategories,
-  priceCategories,
-  addPriceCategories,
-  clearDatabase,
-};
+}

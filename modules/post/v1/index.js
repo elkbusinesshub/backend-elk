@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const postController = require("./controller/post.controller");
 const validation = require("./validation/post.validation");
-const authentication = require("./../../../middlewares/authentication");
+const authentication = require("./../../../helpers/authentication");
 const multer = require("multer");
 const upload = multer();
 

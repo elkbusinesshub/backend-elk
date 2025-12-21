@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const chatController = require("./controller/chat.controller")
 const validation = require("./validation/chat.validation");
-const authentication = require("./../../../middlewares/authentication");
+const authentication = require("./../../../helpers/authentication");
 
 //chat
 router.post(

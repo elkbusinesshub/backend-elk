@@ -70,13 +70,9 @@ sequelize
 
 io.on("connection", (socket) => {
   var socketUsers = [];
-  console.log("A user connected", socket.id);
   socket.on("register", (authUserId) => {
-    console.log(`Register called`);
     if (authUserId) {
       socketUsers.push({ socketId: socket.id, authUserId });
-      console.log(`User ${authUserId} connected`);
-      console.log("Current connected users:", socketUsers);
     }
   });
 
@@ -113,11 +109,14 @@ io.on("connection", (socket) => {
                     );
                     socket.emit("chatRooms", data);
                   } catch (error) {
-                    console.error("Error fetching chat rooms:", error);
                     socket.emit("chatRooms", []);
                   }
-                  io.emit("newMessage", result["data"]);
-                  io.emit("readMessage", result["data"]);
+                  if (messageData.type === 'system' || messageData.status === 'blocked') {
+                    socket.emit('newMessage', result['data']);
+                  } else {
+                    io.emit('newMessage', result['data']);
+                    io.emit('readMessage', result['data']);
+                  }
                 }
               },
             }),
@@ -147,11 +146,16 @@ io.on("connection", (socket) => {
                     );
                     socket.emit("chatRooms", data);
                   } catch (error) {
-                    console.error("Error fetching chat rooms:", error);
                     socket.emit("chatRooms", []);
                   }
-                  io.emit("newMessage", result["data"]);
-                  io.emit("readMessage", result["data"]);
+                  if (messageData.type === 'system') {
+                    socket.emit('newMessage', result['data']);
+                  } else {
+                    io.emit('newMessage', result['data']);
+                    io.emit('readMessage', result['data']);
+                  }
+                  // io.emit("newMessage", result["data"]);
+                  // io.emit("readMessage", result["data"]);
                 }
               },
             }),
@@ -159,17 +163,15 @@ io.on("connection", (socket) => {
         );
       }
     } catch (error) {
-      console.error("Error sending message:", error);
+      //
     }
   });
 
   socket.on("updateMessageStatus", async ({ authUserId, otherUserId }) => {
-    console.log("updateMessageStatus");
-
     try {
       await chatController.updateMessageStatus(authUserId, otherUserId);
     } catch (error) {
-      console.error("Error updating message status:", error);
+      //
     }
   });
 
@@ -178,7 +180,6 @@ io.on("connection", (socket) => {
       const data = await chatController.fetchChatRooms(authUserId);
       socket.emit("chatRooms", data);
     } catch (error) {
-      console.error("Error fetching chat rooms:", error);
       socket.emit("chatRooms", []);
     }
   });
@@ -201,6 +202,5 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     socketUsers = socketUsers.filter((user) => user.socketId !== socket.id);
-    console.log("A user disconnected", socketUsers);
   });
 });

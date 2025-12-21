@@ -58,7 +58,6 @@
 //     const blockedUsers = await BlockedUser.findAll();
 //     res.status(responseStatusCodes.success).json(blockedUsers);
 //   } catch (error) {
-//     console.error("Error fetching blocked users:", error);
 //     res
 //       .status(responseStatusCodes.internalServerError)
 //       .json({ message: "An error occurred while fetching blocked users" });
@@ -69,7 +68,6 @@
 //     const blockedUsers = await User.findAll();
 //     res.status(responseStatusCodes.success).json(blockedUsers);
 //   } catch (error) {
-//     console.error("Error fetching blocked users:", error);
 //     res
 //       .status(responseStatusCodes.internalServerError)
 //       .json({ message: "An error occurred while fetching blocked users" });
@@ -93,7 +91,6 @@
 
 //     return res.status(responseStatusCodes.success).json({ exists: false });
 //   } catch (error) {
-//     console.error("Error checking phone number:", error);
 //     return res
 //       .status(responseStatusCodes.internalServerError)
 //       .json({ message: "Internal server error" });
@@ -108,8 +105,6 @@ const router = express.Router();
 routeConfig.forEach((route)=>{
   console.log(`/api/${route.version}/${route.route}`)
   router.use(`/api/${route.version}/${route.route}` ,require(`../modules/${route.path}/v1/index`))
-  
-
 });
 
 module.exports = (app) => app.use(router);

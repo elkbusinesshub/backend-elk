@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const userController = require("./controller/user.controller");
 const validation = require("./validation/user.validation");
-const authentication = require("./../../../middlewares/authentication");
+const authentication = require("./../../../helpers/authentication");
 const multer = require("multer");
 const upload = multer();
 //user
@@ -79,5 +79,6 @@ router.delete(
   userController.deleteAccount
 );
 router.get("/user_wishlists", authentication, userController.userWishlists);
+router.post('/referral-code', userController.createOrUpdateReferralCode);
 
 module.exports = router;

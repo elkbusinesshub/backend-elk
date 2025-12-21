@@ -1,5 +1,6 @@
-module.exports.
-responseStatusCodes = {
+const { increment } = require("../models/user.model");
+
+module.exports.responseStatusCodes = {
   success: 200,
   created: 201,
   unAuthorized: 401,
@@ -9,10 +10,10 @@ responseStatusCodes = {
   internalServerError: 500,
 };
 
-module.exports.messages = {
+module.exports.responseMessages = {
   //server messages
   urlNotFound: "The resource you are looking for could not be found.",
-  somethingwentWrong: "Something went wrong, Please try again.",
+  internalServerError: "Something went wrong, Please try again.",
   invalidRequest: "Invalid Request",
 
   //auth
@@ -45,6 +46,8 @@ module.exports.messages = {
   otpSend: "Otp send successfully",
   otpNotFound: "OTP not found",
   otpExpired: "OTP exppired",
+  InvalidOtp: 'Invalid OTP',
+  otpLimit: 'Otp limit reached, please try again later',
   userLogged: "User logged successfully",
   userRegistered: "User registrated successfully",
   userNotFound: "User not found",
@@ -58,6 +61,10 @@ module.exports.messages = {
   userWishlistFetched: "User wishlist fetched successfully",
   wishlistRemoved: "Wishlist removed successfully",
   wishlistAlreadyRemoved: "Wishlist already removed successfully",
+  referralError :"You cannot refer yourself",
+  invalidReferralCode: "Invalid referral code",
+  referralSuccessAlready: "Referral already applied",
+  referralSuccess: "Referral applied successfully",
 
   //place
   loactionDataFetched : "Location data fetched successfully.",
@@ -88,7 +95,7 @@ module.exports.messages = {
   wishlistRemoved: "Ad has been removed from Wishlist successfully",
   wishlistAdded: "Ad has been added to wishlist successfully",
   adStatusChange: "Ad status has been updated successfully",
-
+  locationSuccess: 'Location updated successfully',
   //chat
   fileUploadFailed: "File Uplaod Failed",
   chatAdded: "Chat message added successfully",

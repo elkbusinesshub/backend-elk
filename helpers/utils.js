@@ -83,17 +83,18 @@ async function uploadToS3(file, fileName) {
     await s3.send(command);
     return true;
   } catch (error) {
-    console.error("Error uploading to S3:", error);
     return false;
   }
 }
-
+function getImageUrlPublic(imageKey) {
+  const url = `https://${process.env.BUCKET_NAME}.s3.${process.env.BUCKET_REGION}.amazonaws.com/${imageKey}`;
+  return url;
+}
 async function getImageUrl(imageKey) {
   const command = new GetObjectCommand({
     Bucket: process.env.BUCKET_NAME,
     Key: imageKey,
   });
-  const url = `https://${process.env.BUCKET_NAME}.s3.${process.env.BUCKET_REGION}.amazonaws.com/${imageKey}`;
   const signedUrl = await getSignedUrl(s3, command, { expiresIn: 604800 });
   return signedUrl;
 }
@@ -108,7 +109,6 @@ async function deleteImageFromS3(imageKey) {
     await s3.send(command);
     return true;
   } catch (error) {
-    console.error(`Error deleting image ${imageKey}:`, error);
     return false;
   }
 }
@@ -149,7 +149,7 @@ async function formatAd(ad, options = {}) {
             email_uid: ad.user.email_uid,
             mobile_number: ad.user.mobile_number,
             profile: ad.user.profile
-              ? await getImageUrl(ad.user.profile)
+              ? getImageUrlPublic(ad.user.profile)
               : null,
             description: ad.user.description,
             notification_token: ad.user.notification_token,
@@ -160,7 +160,7 @@ async function formatAd(ad, options = {}) {
           ad.ad_images.map(async (image) => ({
             id: image.id,
             ad_id: image.ad_id,
-            image: image.image ? await getImageUrl(image.image) : null,
+            image: image.image ? getImageUrlPublic(image.image) : null,
             createdAt: image.createdAt?.toISOString(),
             updatedAt: image.updatedAt?.toISOString(),
           }))
@@ -244,4 +244,5 @@ module.exports = {
   uploadToS3,
   formatAd,
   formatPagination,
+  getImageUrlPublic
 };
