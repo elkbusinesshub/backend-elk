@@ -76,9 +76,10 @@ const getAllUsers = async (req, res) => {
             }
             return userObj;
         }));
-        return res.status(responseStatusCodes.success).json({ success: true, users: usersWithProfileUrls });
+        // return res.status(responseStatusCodes.success).json({ success: true, users: usersWithProfileUrls });
+        return res.success(responseMessages.allUsersFetched, usersWithProfileUrls, responseStatusCodes.success);
     } catch (error) {
-        return res.status(responseStatusCodes.internalServerError).json({ success: false, message: responseMessages.internalServerError, message: error.message });
+        return next(error);
     }
 };
 
@@ -91,15 +92,17 @@ const blockUserById = async (req, res) => {
             }
         });
         if (!user) {
-            return res.status(responseStatusCodes.notFound).json({ success: false, message: responseMessages.urlNotFound });
+            // return res.status(responseStatusCodes.notFound).json({ success: false, message: responseMessages.urlNotFound });
+            return res.error(responseMessages.userNotFound,null,responseMessages.userNotFound);
         }
 
         user.block_status = !user.block_status;
         await user.save();
 
-        return res.status(responseStatusCodes.success).json({ success: true, message: responseMessages.blockUser });
+        // return res.status(responseStatusCodes.success).json({ success: true, message: responseMessages.blockUser });
+        return res.success(responseMessages.blockUser);
     } catch (error) {
-        return res.status(responseStatusCodes.internalServerError).json({ success: false, message: responseMessages.internalServerError, message: error.message });
+        return next(error);
     }
 };
 
@@ -142,9 +145,11 @@ const getAllAdLocations = async (req, res) => {
                     .filter(Boolean)
             )
         );       
-        return res.status(responseStatusCodes.success).json({ success: true, adLocations, list: uniquePlaces });
+        // return res.status(responseStatusCodes.success).json({ success: true, adLocations, list: uniquePlaces });
+        return res.success(responseMessages.adLocationsFetched,{ data: adLocations, list: uniquePlaces})
     } catch (error) {
-        return res.status(responseStatusCodes.internalServerError).json({ success: false, message: responseMessages.internalServerError, message: error.message });
+        return next(error);
+        // return res.status(responseStatusCodes.internalServerError).json({ success: false, message: responseMessages.internalServerError, message: error.message });
     }
 };
 

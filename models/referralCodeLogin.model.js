@@ -1,6 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
-const User = require('./userModel');
+const User = require('./user.model');
 
 const ReferralCodeLogin = sequelize.define('ReferralCodeLogin', {
   id: {
