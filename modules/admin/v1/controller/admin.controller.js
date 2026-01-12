@@ -59,11 +59,14 @@ const getAdminAds = async (req, res) => {
             }
             return adObj;
         }));
-        return res.status(responseStatusCodes.success).json({ success: true, ads: adsWithUrls });
+        // return res.status(responseStatusCodes.success).json({ success: true, ads: adsWithUrls });
+        return res.success(responseMessages.adminAdsFetched,adsWithUrls);
 
     } catch (error) {
-        return res.status(responseStatusCodes.internalServerError).json({ success: false, message: responseMessages.internalServerError, message: error.message });
+        // return res.status(responseStatusCodes.internalServerError).json({ success: false, message: responseMessages.internalServerError, message: error.message });
+        return next(error);
     }
+
 };
 
 const getAllUsers = async (req, res) => {
@@ -76,9 +79,10 @@ const getAllUsers = async (req, res) => {
             }
             return userObj;
         }));
-        return res.status(responseStatusCodes.success).json({ success: true, users: usersWithProfileUrls });
+        // return res.status(responseStatusCodes.success).json({ success: true, users: usersWithProfileUrls });
+        return res.success(responseMessages.allUsersFetched, usersWithProfileUrls, responseStatusCodes.success);
     } catch (error) {
-        return res.status(responseStatusCodes.internalServerError).json({ success: false, message: responseMessages.internalServerError, message: error.message });
+        return next(error);
     }
 };
 
@@ -91,29 +95,32 @@ const blockUserById = async (req, res) => {
             }
         });
         if (!user) {
-            return res.status(responseStatusCodes.notFound).json({ success: false, message: responseMessages.urlNotFound });
+            // return res.status(responseStatusCodes.notFound).json({ success: false, message: responseMessages.urlNotFound });
+            return res.error(responseMessages.userNotFound,null,responseStatusCodes.notFound);
         }
 
         user.block_status = !user.block_status;
         await user.save();
 
-        return res.status(responseStatusCodes.success).json({ success: true, message: responseMessages.blockUser });
+        // return res.status(responseStatusCodes.success).json({ success: true, message: responseMessages.blockUser });
+        return res.success(responseMessages.blockUser);
     } catch (error) {
-        return res.status(responseStatusCodes.internalServerError).json({ success: false, message: responseMessages.internalServerError, message: error.message });
+        return next(error);
     }
 };
 
 const deleteAdminAd = async (req, res) => {
     try {
         const { id } = req.query;
-        if (!id) {
-            return res.status(responseStatusCodes.badRequest).json({ success: false, message: responseMessages.invalidRequest });
-        }
+        // if (!id) {
+        //     return res.status(responseStatusCodes.badRequest).json({ success: false, message: responseMessages.invalidRequest });
+        // }
         const ad = await Ad.findOne({ad_id:id}, {
             include: [{ model: AdImage, as: 'ad_images' }]
         });
         if (!ad) {
-            return res.status(responseStatusCodes.notFound).json({ success: false, message: responseMessages.adNotFound });
+            // return res.status(responseStatusCodes.notFound).json({ success: false, message: responseMessages.adNotFound });
+            return res.error(responseMessages.adNotFound, null, responseStatusCodes.notFound);
         }
         if (ad.ad_images && ad.ad_images.length > 0) {
             await Promise.all(ad.ad_images.map(async (img) => {
@@ -126,9 +133,11 @@ const deleteAdminAd = async (req, res) => {
         await AdViews.destroy({where: { ad_id: id } });
         await AdWishLists.destroy({where: { ad_id: id } });
         await Ad.destroy({ where: { ad_id: id } });
-        return res.status(responseStatusCodes.success).json({ success: true, message: responseMessages.adDeleted });
+        // return res.status(responseStatusCodes.success).json({ success: true, message: responseMessages.adDeleted });
+        return res.success(responseMessages.adDeleted);
     } catch (error) {
-        return res.status(responseStatusCodes.internalServerError).json({ success: false, message: responseMessages.internalServerError, message: error.message });
+        // return res.status(responseStatusCodes.internalServerError).json({ success: false, message: responseMessages.internalServerError, message: error.message });
+        return next(error);
     }
 };
 
@@ -142,9 +151,11 @@ const getAllAdLocations = async (req, res) => {
                     .filter(Boolean)
             )
         );       
-        return res.status(responseStatusCodes.success).json({ success: true, adLocations, list: uniquePlaces });
+        // return res.status(responseStatusCodes.success).json({ success: true, adLocations, list: uniquePlaces });
+        return res.success(responseMessages.adLocationsFetched,{ data: adLocations, list: uniquePlaces})
     } catch (error) {
-        return res.status(responseStatusCodes.internalServerError).json({ success: false, message: responseMessages.internalServerError, message: error.message });
+        return next(error);
+        // return res.status(responseStatusCodes.internalServerError).json({ success: false, message: responseMessages.internalServerError, message: error.message });
     }
 };
 
