@@ -65,6 +65,7 @@ module.exports.responseMessages = {
   invalidReferralCode: "Invalid referral code",
   referralSuccessAlready: "Referral already applied",
   referralSuccess: "Referral applied successfully",
+  adDetails: "Ad deails fetched successfully",
 
   //place
   loactionDataFetched : "Location data fetched successfully.",
@@ -75,6 +76,7 @@ module.exports.responseMessages = {
   //ad
   adCreated: "Ad created successfully.",
   adNotFound: "Ad not found",
+  adUpdated: "Ad updated successfully",
   imageUploadFailed: "File upload failed",
   imageUploadSuccess : " Image is uploaded successfully",
   imageNotFound: "Ad Image not found",
@@ -113,6 +115,8 @@ module.exports.responseMessages = {
   chatRoomDeleted: "Chat room deleted successfully",
   chatAlreadyDeleted : "Chat message already deleted",
   chatDeleted : "Chat message deleted successfully",
+  userReported: "User report successfully",
+  messageUpdated: "Message Updated successfully"
   
 
 

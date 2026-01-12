@@ -28,9 +28,11 @@ exports.priceCategories = async (req, res) => {
         group[category].push(item);
         return group;
     }, {});
-    res.status(responseStatusCodes.success).json(groupedCategories);
+    //  res.status(responseStatusCodes.success).json(groupedCategories);
+    return res.success(responseMessages.priceCategoriesFetched, groupedCategories);
   } catch (error) {
-    res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
+    return next(error);
+    // res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
   }
 };
 exports.addPriceCategories = async (req, res) => {
@@ -38,15 +40,18 @@ exports.addPriceCategories = async (req, res) => {
     const {category, title} = req.body;
     const priceCategories = await PriceCategory.findOne({where:{title:title,category:category}});
     if(priceCategories){
-      return res.status(responseStatusCodes.success).json({ message: responseMessages.priceCategoriesExist });
+      // return res.status(responseStatusCodes.success).json({ message: responseMessages.priceCategoriesExist });
+      return res.success(responseMessages.priceCategoriesExist);
     }
     await PriceCategory.create({
       title:title,
       category:category
     })
-    return res.status(responseStatusCodes.success).json({ message: responseMessages.priceCategoriesAdded });
+    // return res.status(responseStatusCodes.success).json({ message: responseMessages.priceCategoriesAdded });
+    return res.success(responseMessages.priceCategoriesAdded);
   } catch (error) {
-    return res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
+    return next(error);
+    // return res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
   }
 };
 exports.deletePriceCategories = async (req,res)=>{
@@ -54,12 +59,15 @@ exports.deletePriceCategories = async (req,res)=>{
     const {category, title}=req.body;
     const priceCategories = await PriceCategory.findOne({where:{title:title,category:category}});
     if(!priceCategories){
-      return res.status(responseStatusCodes.success).json({ message: responseMessages.priceCategoryNotFound });
+      // return res.status(responseStatusCodes.success).json({ message: responseMessages.priceCategoryNotFound });
+      return res.success(responseMessages.priceCategoryNotFound);
     }
     await PriceCategory.destroy({where:{title:title,category:category}});
-    return res.status(responseStatusCodes.success).json({ message: responseMessages.priceCategoryDeleted });
+    return res.success(responseMessages.priceCategoryDeleted);
+    // return res.status(responseStatusCodes.success).json({ message: responseMessages.priceCategoryDeleted });
   }catch(error){
-    return res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
+    return next(error);
+    // return res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
   }
 }
 
@@ -83,8 +91,10 @@ exports.clearDatabase = async (req, res)=>{
     await ChatRoom.drop();
     await User.drop();
     // await sequelize.drop();
-    return res.status(responseStatusCodes.success).json({ message: responseMessages.databaseCleared });
+    // return res.status(responseStatusCodes.success).json({ message: responseMessages.databaseCleared });
+    return res.success(responseMessages.databaseCleared);
   }catch(e){
-    return res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
+    // return res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
+    return next(e)
   }
 }
