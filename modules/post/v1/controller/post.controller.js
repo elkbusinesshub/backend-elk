@@ -9,6 +9,7 @@ const AdView = require("../../../../models/adView.model");
 const SearchCategory = require("../../../../models/searchCategory.model");
 const sequelize = require("../../../../config/db");
 const UserSearch = require("../../../../models/userSearch.model");
+const BlockedUser = require("../../../../models/blockedUser.model");
 const admin = require("../../../../helpers/firebase");
 const messaging = admin.messaging();
 const {
@@ -684,9 +685,9 @@ exports.searchAds = async (req, res) => {
 exports.rentCategoryPosts = async (req, res) => {       
     try {
         const { ad_type, location_type, location, latitude, longitude, category, keyword, page = 1, user_id, min_price, max_price } = req.body;
-        if (!ad_type) {
-            return res.status(responseStatusCodes.badRequest).json({ message: responseMessages.invalidRequest });
-        }
+        // if (!ad_type) {
+        //     return res.status(responseStatusCodes.badRequest).json({ message: responseMessages.invalidRequest });
+        // }
         const perPage = 15;
         const offset = (page - 1) * perPage;
         if(user_id){
@@ -880,9 +881,11 @@ exports.rentCategoryPosts = async (req, res) => {
             ...formatPagination({ page: Number(page), perPage, total: count, path: fullUrl }),
             data: formattedAds
         };
-        res.status(responseStatusCodes.success).json(response);
+        // res.status(responseStatusCodes.success).json(response);
+        res.success(responseMessages.rentCategoryPosts,response);
     } catch (error) {
-        res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
+        // res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
+        return next(error)
     }
 };
 
