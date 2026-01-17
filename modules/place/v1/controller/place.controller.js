@@ -53,7 +53,7 @@ async function savePlace(places) {
   }
 }
 
-exports.getPlace = async (req, res) => {
+exports.getPlace = async (req, res, next) => {
   const { longitude, latitude } = req.body;
   try {
     const response = await axios.get(
