@@ -1,4 +1,4 @@
-const { responseStatusCodes, messages } = require("./appConstants");
+const { responseStatusCodes, responseMessages } = require("./appConstants");
 const {
   PutObjectCommand,
   S3Client,
@@ -49,11 +49,11 @@ const globalResponseHandler = (req, res, next) => {
 };
 
 const unknownRouteHandler = (req, res) =>
-  res.error(messages.urlNotFound, responseStatusCodes.notFound);
+  res.error(responseMessages.urlNotFound, responseStatusCodes.notFound);
 const globalErrorHandler = (err, req, res, next) =>
   res
     .status(responseStatusCodes.internalServerError)
-    .json(createErrorResponse(err?.message || messages.somethingwentWrong));
+    .json(createErrorResponse(err?.message || responseMessages.somethingwentWrong));
 
 const unhandledErrorHandler = (error) => {
   console.log("====== Unhandled Error ====");

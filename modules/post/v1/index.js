@@ -14,13 +14,6 @@ router.post(
   postController.createAd
 );
 router.post(
-  "/upload_ad_image",
-  authentication,
-  upload.array("files"),
-  validation.updateAdImageValidator,
-  postController.updateAdImage
-);
-router.post(
   "/update_ad_address",
   authentication,
   validation.updateAdAddressValidator,
@@ -76,11 +69,6 @@ router.post(
   postController.bestServiceProviders
 );
 router.post(
-  "/search_ad",
-  validation.searchAdsValidator,
-  postController.searchAds
-);
-router.post(
   "/ad_catergories_for",
   authentication,
   postController.adCategoriesFor
@@ -90,6 +78,18 @@ router.post(
   authentication,
   validation.addToWishlistValidator,
   postController.addToWishlist
+);
+router.post(
+  "/upload_ad_image",
+  authentication,
+  upload.array("files"),
+  validation.updateAdImageValidator,
+  postController.updateAdImage
+);
+router.post(
+  "/search_ad",
+  validation.searchAdsValidator,
+  postController.searchAds
 );
 
 module.exports = router;

@@ -11,6 +11,11 @@ router.post(
   validation.validateAddChat,
   chatController.addChat
 );
+router.post(
+  '/report_user',
+  validation.validateBlockUnblock,
+  chatController.reportAUser
+);
 router.get(
   "/get_chat",
   validation.validateGetChat,

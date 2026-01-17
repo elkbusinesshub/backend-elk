@@ -1,15 +1,16 @@
 const jwt = require('jsonwebtoken');
+const { responseStatusCodes, responseMessages } = require("./appConstants");
 
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     if (token == null) {
-        return res.sendstatus(responseStatusCodes.unAuthorized);
+        return res.sendStatus(responseStatusCodes.unAuthorized);
     }
     
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
         if (err) {            
-            return res.sendstatus(responseStatusCodes.forbidden);
+            return res.sendStatus(responseStatusCodes.forbidden);
         }
         req.user = user;
         next();

@@ -94,6 +94,7 @@ module.exports = {
     try {
       const schema = joi.object({
         page: joi.number().integer().min(1).required(),
+        id: joi.number().integer().optional(),
       });
 
       await schema.validateAsync(req.body);
@@ -155,7 +156,7 @@ module.exports = {
           latitude: joi.number().optional(),
           longitude: joi.number().optional(),
           page: joi.number().integer().min(1).default(1),
-          user_id: joi.string().optional(),
+          user_id: joi.number().optional(),
         })
         .custom((value, helpers) => {
           const hasAny =

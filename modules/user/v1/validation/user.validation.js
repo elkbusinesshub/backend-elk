@@ -20,6 +20,7 @@ module.exports = {
         verificationId: joi.string().required().label("Verification ID"),
         otp: joi.string().length(6).required().label("OTP"),
         name: joi.string().min(2).max(100).optional().label("Name"),
+        referralCode: joi.string().optional().allow(null, "").label("Referral Code"),
       });
 
       await schema.validateAsync(req.body);
