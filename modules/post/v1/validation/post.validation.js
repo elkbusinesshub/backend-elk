@@ -34,10 +34,15 @@ module.exports = {
   updateAdAddressValidator: async (req, res, next) => {
     try {
       const schema = joi.object({
-        ad_id: joi.string().required(),
+        ad_id: joi.number().required(),
+        ad_stage: joi.number().required(),
+        ad_status: joi.string().required(),
         country: joi.string().required(),
         latitude: joi.number().required(),
         longitude: joi.number().required(),
+        state: joi.string().allow("").optional(),
+        district: joi.string().allow("").optional(),
+        locality: joi.string().allow("").optional(),
       });
       await schema.validateAsync(req.body);
       return next();
