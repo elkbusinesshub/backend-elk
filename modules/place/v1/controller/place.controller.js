@@ -126,7 +126,7 @@ const mapBoxSearchPlace = async (place) => {
   }
 };
 
-exports.placeSearch = async (req, res) => {
+exports.placeSearch = async (req, res, next) => {
   const { query, limited } = req.body;
   // if (!query || typeof limited !== 'boolean') {
   //     return res.status(responseStatusCodes.badRequest).json({ message: responseMessages.invalidRequest });
@@ -173,7 +173,7 @@ exports.placeSearch = async (req, res) => {
   }
 };
 
-exports.getPlaces = async (req, res) => {
+exports.getPlaces = async (req, res, next) => {
   const { type, state, city } = req.query;
   try {
     let query;

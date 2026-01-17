@@ -17,7 +17,8 @@ module.exports = {
   validatePlaceSearch: async (req, res, next) => {
     try {
       const schema = joi.object({
-        query: joi.boolean().required(),
+        query: joi.string().required(),
+        limited: joi.boolean().optional()
       });
 
       await schema.validateAsync(req.body);
