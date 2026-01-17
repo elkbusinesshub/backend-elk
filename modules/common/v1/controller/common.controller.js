@@ -14,6 +14,8 @@ const PriceCategory = require("../../../../models/priceCategory.model");
 const SearchCategory = require("../../../../models/searchCategory.model");
 const User = require("../../../../models/user.model");
 const UserSearch = require("../../../../models/userSearch.model");
+const BlockedUser = require("../../../../models/blockedUser.model");
+
 const {
   responseStatusCodes,
   responseMessages,
@@ -98,3 +100,40 @@ exports.clearDatabase = async (req, res)=>{
     return next(e)
   }
 }
+exports.getBlockedUsers = async (req, res, next) => {
+  try {
+    const blockedUsers = await BlockedUser.findAll();
+    return res.success("Blocked users fetched successfully", blockedUsers);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.getAllUsers = async (req, res, next) => {
+  try {
+    const users = await User.findAll();
+    return res.success("Users fetched successfully", users);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.checkPhone = async (req, res, next) => {
+  try {
+    const { mobile_number } = req.query;
+
+    if (!mobile_number) {
+      return res
+        .status(responseStatusCodes.badRequest)
+        .json({ message: "Mobile number is required" });
+    }
+
+    const user = await User.findOne({ where: { mobile_number } });
+
+    return res.success("Phone check completed", {
+      exists: !!user,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};

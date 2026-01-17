@@ -94,6 +94,7 @@ module.exports = {
     try {
       const schema = joi.object({
         page: joi.number().integer().min(1).required(),
+        id: joi.number().integer().optional(),
       });
 
       await schema.validateAsync(req.body);

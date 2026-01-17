@@ -15,5 +15,8 @@ router.delete(
     validation.validateDeletePriceCategories,
     commonController.deletePriceCategories
 );
+router.get("/blocked-users", commonController.getBlockedUsers);
+router.get("/get-all-users", commonController.getAllUsers);
+router.get("/check-phone", commonController.checkPhone);
 
 module.exports = router;
