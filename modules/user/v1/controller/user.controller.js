@@ -111,7 +111,7 @@ exports.createUser = async (req, res, next) => {
         }
         const token = jwt.sign(
           { id: user.user_id },
-          process.env.ACCESS_TOKEN_SECRET
+          process.env.ACCESS_TOKEN_SECRET,
         );
         await user.save();
 
@@ -151,7 +151,7 @@ exports.createUser = async (req, res, next) => {
         await user.save();
         const token = jwt.sign(
           { id: user.user_id },
-          process.env.ACCESS_TOKEN_SECRET
+          process.env.ACCESS_TOKEN_SECRET,
         );
         let newReferralCode = generateReferralCode();
         await ReferralCode.create({
@@ -255,7 +255,7 @@ exports.addReferralLogin = async (req, res, next) => {
       //   });
       return res.success(
         responseMessages.referralSuccessAlready,
-        existingUsage
+        existingUsage,
       );
     }
     const newReferralLog = await ReferralCodeLogin.create({
@@ -373,7 +373,7 @@ exports.verifyOtp = async (req, res, next) => {
       }
       const token = jwt.sign(
         { id: user.user_id },
-        process.env.ACCESS_TOKEN_SECRET
+        process.env.ACCESS_TOKEN_SECRET,
       );
       user.set("token", token);
       let profileUrl;
@@ -414,7 +414,7 @@ exports.verifyOtp = async (req, res, next) => {
       });
       const token = jwt.sign(
         { id: newUser.user_id },
-        process.env.ACCESS_TOKEN_SECRET
+        process.env.ACCESS_TOKEN_SECRET,
       );
       await newUser.save();
       if (referralCode && referralCode !== "") {
@@ -749,7 +749,9 @@ exports.userWithAds = async (req, res, next) => {
       //     .json({ message: responseMessages.userNotFound });
       return res.error(responseMessages.userNotFound);
     }
-    const formattedAds = await Promise.all( user.dataValues.ads.map((ad) => formatAd(ad)));
+    const formattedAds = await Promise.all(
+      user.dataValues.ads.map((ad) => formatAd(ad)),
+    );
     const fullUrl = `${req.protocol}://${req.get("host")}${
       req.originalUrl.split("?")[0]
     }`;
@@ -788,27 +790,36 @@ exports.userWishlists = async (req, res, next) => {
       where: { user_id: userId.id },
       attributes: ["ad_id"],
     });
-    const ads = [];
     const adIds = wishlist.map((w) => w.ad_id);
 
-    for (i in adIds) {
-      const ad = await Ad.findOne({
-        where: {
-          ad_id: adIds[i],
-          ad_stage: 3,
-        },
-        include: [
-          { model: User, as: "user" },
-          { model: AdImage, as: "ad_images" },
-          { model: AdLocation, as: "ad_location" },
-          { model: AdPriceDetails, as: "ad_price_details" },
-        ],
-        nest: true,
-      });
-      ads.push(formatAd(ad));
-    }
+    const ads = await Promise.all(
+      adIds.map(async (adId) => {
+        const ad = await Ad.findOne({
+          where: {
+            ad_id: adId,
+            ad_stage: 3,
+          },
+          include: [
+            { model: User, as: "user" },
+            { model: AdImage, as: "ad_images" },
+            { model: AdLocation, as: "ad_location" },
+            { model: AdPriceDetails, as: "ad_price_details" },
+          ],
+          nest: true,
+        });
+
+        if (!ad) return null;
+
+        return await formatAd(ad);
+      }),
+    );
+
+    // remove null ads (if any)
+    const filteredAds = ads.filter(Boolean);
+
+    return res.success(responseMessages.userWishlistFetched, filteredAds);
     // res.status(responseStatusCodes.success).json(ads);
-    return res.success(responseMessages.userWishlistFetched, ads);
+    
   } catch (error) {
     // res
     //   .status(responseStatusCodes.internalServerError)
