@@ -149,7 +149,7 @@ module.exports = {
   validateViewContact: async (req, res, next) => {
     try {
       const schema = joi.object({
-        userId: joi.string().required(),
+        userId: joi.number().required(),
       });
 
       await schema.validateAsync(req.body);

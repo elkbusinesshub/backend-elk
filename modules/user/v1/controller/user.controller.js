@@ -73,7 +73,7 @@ const sendSangamamOtp = async (mobile, otp) => {
   return await sendCurl(url);
 };
 
-exports.createUser = async (req, res) => {
+exports.createUser = async (req, res, next) => {
   const { name, uuid, mobile, email, referralCode } = req.body;
   if (!mobile && !email) {
     return res.error(responseMessages.invalidRequest);
@@ -219,7 +219,7 @@ exports.createUser = async (req, res) => {
   }
 };
 
-exports.addReferralLogin = async (req, res) => {
+exports.addReferralLogin = async (req, res, next) => {
   try {
     const { referralCode, login_user_id } = req.body;
     if (!referralCode || !login_user_id) {
@@ -277,7 +277,7 @@ exports.addReferralLogin = async (req, res) => {
   }
 };
 
-exports.sendOtp = async (req, res) => {
+exports.sendOtp = async (req, res, next) => {
   try {
     const { mobile } = req.body;
     // if (!mobile) {
@@ -326,7 +326,7 @@ exports.sendOtp = async (req, res) => {
   }
 };
 
-exports.verifyOtp = async (req, res) => {
+exports.verifyOtp = async (req, res, next) => {
   try {
     const { verificationId, otp, name, referralCode } = req.body;
     if (!verificationId || !otp) {
@@ -471,7 +471,7 @@ exports.verifyOtp = async (req, res) => {
   }
 };
 
-exports.verifyUpdateMobileOtp = async (req, res) => {
+exports.verifyUpdateMobileOtp = async (req, res, next) => {
   try {
     const { verificationId, otp } = req.body;
     if (!verificationId || !otp) {
@@ -505,7 +505,7 @@ exports.verifyUpdateMobileOtp = async (req, res) => {
   }
 };
 
-exports.getUserById = async (req, res) => {
+exports.getUserById = async (req, res, next) => {
   const id = req.query.id;
   try {
     const user = await User.findOne({ where: { user_id: id } });
@@ -530,7 +530,7 @@ exports.getUserById = async (req, res) => {
   }
 };
 
-exports.updateProfilePic = async (req, res) => {
+exports.updateProfilePic = async (req, res, next) => {
   const id = req.query.id;
   const fileExtension = path.extname(req.file.originalname);
   const fileName = `${id}${fileExtension}`;
@@ -553,7 +553,7 @@ exports.updateProfilePic = async (req, res) => {
   }
 };
 
-exports.updateEmailOrMobile = async (req, res) => {
+exports.updateEmailOrMobile = async (req, res, next) => {
   try {
     const { email, mobile, uid, user_id } = req.body;
     if (!email && !mobile) {
@@ -600,7 +600,7 @@ exports.updateEmailOrMobile = async (req, res) => {
   }
 };
 
-exports.updateProfile = async (req, res) => {
+exports.updateProfile = async (req, res, next) => {
   const { name, description, user_id } = req.body;
   try {
     if (!name && !description) {
@@ -688,7 +688,7 @@ exports.deleteAccount = async (req, res) => {
   }
 };
 
-exports.updateNotificationToken = async (req, res) => {
+exports.updateNotificationToken = async (req, res, next) => {
   try {
     const { notification_token } = req.body;
 
@@ -717,7 +717,7 @@ exports.updateNotificationToken = async (req, res) => {
   }
 };
 
-exports.userWithAds = async (req, res) => {
+exports.userWithAds = async (req, res, next) => {
   try {
     const { user_id } = req.body;
     // if (!user_id) {
@@ -749,7 +749,7 @@ exports.userWithAds = async (req, res) => {
       //     .json({ message: responseMessages.userNotFound });
       return res.error(responseMessages.userNotFound);
     }
-    const formattedAds = await Promise.all(ads.map((ad) => formatAd(ad)));
+    const formattedAds = await Promise.all( user.dataValues.ads.map((ad) => formatAd(ad)));
     const fullUrl = `${req.protocol}://${req.get("host")}${
       req.originalUrl.split("?")[0]
     }`;
@@ -781,7 +781,7 @@ exports.userWithAds = async (req, res) => {
   }
 };
 
-exports.userWishlists = async (req, res) => {
+exports.userWishlists = async (req, res, next) => {
   try {
     const userId = req.user;
     const wishlist = await AdWishLists.findAll({
@@ -817,7 +817,7 @@ exports.userWishlists = async (req, res) => {
   }
 };
 
-exports.removeWishlist = async (req, res) => {
+exports.removeWishlist = async (req, res, next) => {
   try {
     const { ad_id } = req.body;
     // if (!ad_id) {
@@ -849,7 +849,7 @@ exports.removeWishlist = async (req, res) => {
   }
 };
 
-exports.viewContact = async (req, res) => {
+exports.viewContact = async (req, res, next) => {
   try {
     const { userId } = req.body;
     // if (!userId) {

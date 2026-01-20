@@ -24,7 +24,7 @@ module.exports = {
         ad_status: joi.string().optional(),
         ad_stage: joi.number().optional(),
       });
-      await schema.validateAsync(req.body);
+      await schema.validateAsync(req.query);
       return next();
     } catch (error) {
       return res.error(error?.message);
@@ -43,6 +43,7 @@ module.exports = {
         state: joi.string().allow("").optional(),
         district: joi.string().allow("").optional(),
         locality: joi.string().allow("").optional(),
+        place: joi.string().allow("").optional(),
       });
       await schema.validateAsync(req.body);
       return next();
@@ -53,8 +54,8 @@ module.exports = {
   getAdDetailsValidator: async (req, res, next) => {
     try {
       const schema = joi.object({
-        ad_id: joi.string().optional(),
-        user_id: joi.string().optional(),
+        ad_id: joi.number().optional(),
+        user_id: joi.number().optional(),
       });
       await schema.validateAsync(req.body);
       return next();

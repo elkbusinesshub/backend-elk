@@ -115,7 +115,7 @@ function escapeXml(unsafe) {
 function logoBufferHeightRatio(_buf) {
   return 0.35;
 }
-exports.updateAdImage = async (req, res) => {
+exports.updateAdImage = async (req, res, next) => {
   const { ad_id, ad_stage, ad_status } = req.query;
   const images = req.files;
 
