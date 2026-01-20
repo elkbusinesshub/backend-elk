@@ -137,7 +137,7 @@ module.exports = {
   validateRemoveWishlist: async (req, res, next) => {
     try {
       const schema = joi.object({
-        ad_id: joi.string().required(),
+        ad_id: joi.number().required(),
       });
 
       await schema.validateAsync(req.body);
@@ -149,7 +149,7 @@ module.exports = {
   validateViewContact: async (req, res, next) => {
     try {
       const schema = joi.object({
-        userId: joi.string().required(),
+        userId: joi.number().required(),
       });
 
       await schema.validateAsync(req.body);

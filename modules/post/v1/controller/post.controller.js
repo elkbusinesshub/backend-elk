@@ -9,6 +9,7 @@ const AdView = require("../../../../models/adView.model");
 const SearchCategory = require("../../../../models/searchCategory.model");
 const sequelize = require("../../../../config/db");
 const UserSearch = require("../../../../models/userSearch.model");
+const BlockedUser = require("../../../../models/blockedUser.model");
 const admin = require("../../../../helpers/firebase");
 const BlockedUser = require("../../../../models/blockedUser.model");
 
@@ -116,7 +117,7 @@ function escapeXml(unsafe) {
 function logoBufferHeightRatio(_buf) {
   return 0.35;
 }
-exports.updateAdImage = async (req, res) => {
+exports.updateAdImage = async (req, res, next) => {
   const { ad_id, ad_stage, ad_status } = req.query;
   const images = req.files;
 
@@ -1068,7 +1069,7 @@ exports.rentCategoryPosts = async (req, res) => {
   }
 };
 
-exports.bestServiceProviders = async (req, res) => {
+exports.bestServiceProviders = async (req, res, next) => {
   try {
     const perPage = 10;
     const {
@@ -1211,14 +1212,95 @@ exports.bestServiceProviders = async (req, res) => {
       }
     }
     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
-    const formattedAds = await Promise.all(
-      ads.map((ad) =>
-        formatAd(ad, { userId: user_id, wishListAdIds, includeCounts: true })
-      )
-    );
+    const totalPages = Math.ceil(count / perPage);
     const fullUrl = `${req.protocol}://${req.get("host")}${
       req.originalUrl.split("?")[0]
     }`;
+    const buildUrl = (pageNum) => `${fullUrl}?page=${pageNum}`;
+    const response = {
+      current_page: page,
+      data: await Promise.all(
+        ads.map(async (ad) => {
+          return {
+            id: ad.dataValues.ad_id,
+            ad_id: ad.dataValues.ad_id,
+            user_id: ad.dataValues.user_id,
+            title: ad.dataValues.title,
+            category: ad.dataValues.category,
+            description: ad.dataValues.description,
+            ad_type: ad.dataValues.ad_type,
+            ad_status: ad.dataValues.ad_status,
+            ad_stage: ad.dataValues.ad_stage,
+            ad_wish_lists_count: ad.dataValues.ad_wish_lists_count,
+            ad_views_count: ad.dataValues.ad_views_count,
+            distance: ad.dataValues.distance,
+            createdAt: ad.dataValues.createdAt.toISOString(),
+            updatedAt: ad.dataValues.updatedAt.toISOString(),
+            ad_price_details: ad.dataValues.ad_price_details.map(
+              (priceDetail) => ({
+                id: priceDetail.dataValues.id,
+                ad_id: priceDetail.dataValues.ad_id,
+                rent_duration: priceDetail.dataValues.rent_duration,
+                rent_price: priceDetail.dataValues.rent_price,
+                createdAt: priceDetail.dataValues.createdAt.toISOString(),
+                updatedAt: priceDetail.dataValues.updatedAt.toISOString(),
+              })
+            ),
+            ad_images: await Promise.all(
+              ad.dataValues.ad_images.map(async (image) => {
+                return {
+                  id: image.dataValues.id,
+                  ad_id: image.dataValues.ad_id,
+                  image: image.dataValues.image,
+                  createdAt: image.dataValues.createdAt.toISOString(),
+                  updatedAt: image.dataValues.updatedAt.toISOString(),
+                };
+              })
+            ),
+            ad_location: {
+              id: ad.dataValues.ad_location.id,
+              ad_id: ad.dataValues.ad_location.ad_id,
+              locality: ad.dataValues.ad_location.locality ?? "",
+              place: ad.dataValues.ad_location.place ?? "",
+              district: ad.dataValues.ad_location.district ?? "",
+              state: ad.dataValues.ad_location.state ?? "",
+              country: ad.dataValues.ad_location.country ?? "",
+              longitude: `${ad.dataValues.ad_location.longitude}`,
+              latitude: `${ad.dataValues.ad_location.latitude}`,
+              createdAt: ad.dataValues.ad_location.createdAt.toISOString(),
+              updatedAt: ad.dataValues.ad_location.updatedAt.toISOString(),
+            },
+          };
+        })
+      ),
+      first_page_url: buildUrl(1),
+      from: offset + 1,
+      last_page: totalPages,
+      last_page_url: buildUrl(totalPages),
+      links: (links = [
+        {
+          url: page > 1 ? buildUrl(page - 1) : null,
+          label: "&laquo; Previous",
+          active: page > 1,
+        },
+        {
+          url: buildUrl(page),
+          label: `${page}`,
+          active: true,
+        },
+        {
+          url: page < totalPages ? buildUrl(page + 1) : null,
+          label: "Next &raquo;",
+          active: page < totalPages,
+        },
+      ]),
+      next_page_url: page < totalPages ? buildUrl(page + 1) : null,
+      path: fullUrl,
+      per_page: perPage,
+      prev_page_url: page > 1 ? buildUrl(page - 1) : null,
+      to: Math.min(offset + perPage, count),
+      total: count,
+    };
     // res.status(responseStatusCodes.success).json({
     //   ...formatPagination({
     //     page: Number(page),
@@ -1228,15 +1310,7 @@ exports.bestServiceProviders = async (req, res) => {
     //   }),
     //   data: formattedAds,
     // });
-    return res.success(responseMessages.bestServiceProviders, {
-      pagination: formatPagination({
-        page: Number(page),
-        perPage,
-        total: count,
-        path: fullUrl,
-      }),
-      data: formattedAds,
-    });
+    return res.success(responseMessages.bestServiceProviders, response);
   } catch (error) {
     // res
     //   .status(responseStatusCodes.internalServerError)

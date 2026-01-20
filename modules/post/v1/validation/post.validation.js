@@ -24,7 +24,7 @@ module.exports = {
         ad_status: joi.string().optional(),
         ad_stage: joi.number().optional(),
       });
-      await schema.validateAsync(req.body);
+      await schema.validateAsync(req.query);
       return next();
     } catch (error) {
       return res.error(error?.message);
@@ -34,10 +34,16 @@ module.exports = {
   updateAdAddressValidator: async (req, res, next) => {
     try {
       const schema = joi.object({
-        ad_id: joi.string().required(),
+        ad_id: joi.number().required(),
+        ad_stage: joi.number().required(),
+        ad_status: joi.string().required(),
         country: joi.string().required(),
         latitude: joi.number().required(),
         longitude: joi.number().required(),
+        state: joi.string().allow("").optional(),
+        district: joi.string().allow("").optional(),
+        locality: joi.string().allow("").optional(),
+        place: joi.string().allow("").optional(),
       });
       await schema.validateAsync(req.body);
       return next();
@@ -48,8 +54,8 @@ module.exports = {
   getAdDetailsValidator: async (req, res, next) => {
     try {
       const schema = joi.object({
-        ad_id: joi.string().optional(),
-        user_id: joi.string().optional(),
+        ad_id: joi.number().optional(),
+        user_id: joi.number().optional(),
       });
       await schema.validateAsync(req.body);
       return next();
@@ -156,7 +162,7 @@ module.exports = {
           latitude: joi.number().optional(),
           longitude: joi.number().optional(),
           page: joi.number().integer().min(1).default(1),
-          user_id: joi.string().optional(),
+          user_id: joi.number().optional(),
         })
         .custom((value, helpers) => {
           const hasAny =
@@ -223,7 +229,7 @@ module.exports = {
   addToWishlistValidator: async (req, res, next) => {
     try {
       const schema = joi.object({
-        ad_id: joi.string().required(),
+        ad_id: joi.number().required(),
       });
       await schema.validateAsync(req.body);
       return next();
