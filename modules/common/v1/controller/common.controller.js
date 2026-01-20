@@ -14,7 +14,6 @@ const PriceCategory = require("../../../../models/priceCategory.model");
 const SearchCategory = require("../../../../models/searchCategory.model");
 const User = require("../../../../models/user.model");
 const UserSearch = require("../../../../models/userSearch.model");
-const BlockedUser = require("../../../../models/blockedUser.model");
 
 const {
   responseStatusCodes,

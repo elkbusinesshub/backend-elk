@@ -20,6 +20,8 @@ const ReferralCode = require("../../../../models/referralCode.model");
 const ReferralCodeLogin = require("../../../../models/referralCodeLogin.model");
 const ReportUser = require("../../../../models/reportUser.model");
 const crypto = require("crypto");
+const BlockedUser = require("../../../../models/blockedUser.model");
+
 const {
   getImageUrlPublic,
   uploadToS3,
@@ -753,10 +755,13 @@ exports.userWithAds = async (req, res) => {
     const fullUrl = `${req.protocol}://${req.get("host")}${
       req.originalUrl.split("?")[0]
     }`;
+    const ads = user.ads || [];
+    const adCount = ads.length;
+
     const pagination = formatPagination({
-      page: Number(page),
-      perPage,
-      total: count,
+      page: 1,
+      perPage: 10,
+      total: adCount,
       path: fullUrl,
     });
 
