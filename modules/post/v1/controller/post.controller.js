@@ -11,7 +11,6 @@ const sequelize = require("../../../../config/db");
 const UserSearch = require("../../../../models/userSearch.model");
 const BlockedUser = require("../../../../models/blockedUser.model");
 const admin = require("../../../../helpers/firebase");
-const BlockedUser = require("../../../../models/blockedUser.model");
 
 const messaging = admin.messaging();
 const {
