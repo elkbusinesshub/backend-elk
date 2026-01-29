@@ -27,6 +27,7 @@ const {
   uploadToS3,
   formatAd,
   formatPagination,
+  getImageUrl,
 } = require("../../../../helpers/utils");
 const {
   responseStatusCodes,
@@ -634,7 +635,7 @@ exports.updateProfile = async (req, res, next) => {
   }
 };
 
-exports.deleteAccount = async (req, res) => {
+exports.deleteAccount = async (req, res, next) => {
   const { user_id } = req.query;
 
   if (!user_id) {
@@ -933,7 +934,7 @@ function generateReferralCode() {
   return code;
 }
 
-exports.createOrUpdateReferralCode = async (req, res) => {
+exports.createOrUpdateReferralCode = async (req, res, next) => {
   try {
     const { user_id } = req.body;
 

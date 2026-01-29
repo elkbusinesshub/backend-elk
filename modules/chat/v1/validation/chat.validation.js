@@ -103,6 +103,7 @@ const validateBlockUnblock = async (req, res, next) => {
         "any.required": "otherUserId is required",
         "string.empty": "otherUserId is required",
       }),
+      reason: joi.string().allow(null).optional(),
     });
 
     await schema.validateAsync(req.body);

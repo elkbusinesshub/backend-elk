@@ -4,11 +4,14 @@ module.exports = {
   createAdValidator: async (req, res, next) => {
     try {
       const schema = joi.object({
+        ad_id: joi.number().allow(null).default(null).optional(),
         title: joi.string().required(),
         description: joi.string().required(),
         ad_type: joi.string().required(),
         category: joi.string().required(),
         ad_prices: joi.any().required(),
+        ad_status: joi.string().allow(null).optional(),
+        ad_stage: joi.number().allow(null).optional(),
       });
       await schema.validateAsync(req.body);
       return next();
@@ -35,8 +38,8 @@ module.exports = {
     try {
       const schema = joi.object({
         ad_id: joi.number().required(),
-        ad_stage: joi.number().required(),
-        ad_status: joi.string().required(),
+        ad_stage: joi.number().allow(null).optional(),
+        ad_status: joi.string().allow(null).optional(),
         country: joi.string().required(),
         latitude: joi.number().required(),
         longitude: joi.number().required(),
@@ -120,8 +123,8 @@ module.exports = {
         location: joi.string().optional(),
         latitude: joi.number().optional(),
         longitude: joi.number().optional(),
-        category: joi.string().optional(),
-        keyword: joi.string().optional(),
+        category: joi.string().allow('').empty('').default(null).optional(),
+        keyword: joi.string().allow('').empty('').default(null).optional(),
         page: joi.number().integer().min(1).default(1).optional(),
         user_id: joi.string().optional(),
         min_price: joi.number().optional(),
@@ -156,7 +159,7 @@ module.exports = {
         .object({
           location_type: joi
             .string()
-            .valid("state", "city", "locality", "place")
+            .valid("state", "city", "locality", "place","country")
             .optional(),
           location: joi.string().optional(),
           latitude: joi.number().optional(),

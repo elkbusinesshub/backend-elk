@@ -21,7 +21,7 @@ function generateRoomId() {
   return parseInt(userId);
 }
 
-exports.addChat = async (req, res) => {
+exports.addChat = async (req, res, next) => {
   const {
     authUserId,
     userId,
@@ -153,7 +153,7 @@ exports.addChat = async (req, res) => {
   }
 };
 
-exports.blockAUser = async (req, res) => {
+exports.blockAUser = async (req, res, next) => {
   const { authUserId, otherUserId } = req.body;
   // if ( !authUserId && !otherUserId ) {
   //     return res.status(responseStatusCodes.badRequest).json({ message: responseMessages.invalidRequest });
@@ -184,7 +184,7 @@ exports.blockAUser = async (req, res) => {
   }
 };
 
-exports.reportAUser = async (req, res) => {
+exports.reportAUser = async (req, res, next) => {
   const { authUserId, otherUserId, reason } = req.body;
   if (!authUserId && !otherUserId && !reason) {
     // return res
@@ -210,7 +210,7 @@ exports.reportAUser = async (req, res) => {
   }
 };
 
-exports.unblockAUser = async (req, res) => {
+exports.unblockAUser = async (req, res, next) => {
   const { authUserId, otherUserId } = req.body;
   //   if (!authUserId && !otherUserId) {
   //     return res
@@ -243,7 +243,7 @@ exports.unblockAUser = async (req, res) => {
   }
 };
 
-exports.isUserBlocked = async (req, res) => {
+exports.isUserBlocked = async (req, res, next) => {
   const { blockerId, blockedId } = req.query;
   //   if (!blockerId || !blockedId) {
   //     return res
@@ -307,7 +307,7 @@ exports.updateMessageStatus = async (authUserId, otherUserId) => {
   }
 };
 
-exports.getChatMessages = async (req, res) => {
+exports.getChatMessages = async (req, res, next) => {
   const { authUserId, otherUserId } = req.query;
 
   //   if (!authUserId || !otherUserId) {
@@ -388,7 +388,7 @@ exports.getChatMessages = async (req, res) => {
   }
 };
 
-exports.getTotalChatRoomsCount = async (req, res) => {
+exports.getTotalChatRoomsCount = async (req, res, next) => {
   const { authUserId } = req.query;
   try {
     const count = await ChatRoom.count({
@@ -415,7 +415,7 @@ exports.getTotalChatRoomsCount = async (req, res) => {
   }
 };
 
-exports.getChatRooms = async (req, res) => {
+exports.getChatRooms = async (req, res, next) => {
   const { authUserId } = req.query;
   try {
     const chatRooms = await ChatRoom.findAll({
@@ -617,7 +617,7 @@ exports.fetchChatRooms = async (authUserId) => {
   }
 };
 
-exports.deleteOneChatMessageForUser = async (req, res) => {
+exports.deleteOneChatMessageForUser = async (req, res, next) => {
   const { authUserId, messageId } = req.body;
   //   if (!authUserId || !messageId) {
   //     return res
@@ -652,7 +652,7 @@ exports.deleteOneChatMessageForUser = async (req, res) => {
   }
 };
 
-exports.deleteAllMessagesForUser = async (req, res) => {
+exports.deleteAllMessagesForUser = async (req, res, next) => {
   const { authUserId, otherUserId } = req.body;
   //   if (!authUserId || !otherUserId) {
   //     return res
@@ -701,7 +701,7 @@ exports.deleteAllMessagesForUser = async (req, res) => {
   }
 };
 
-exports.deleteRoom = async (req, res) => {
+exports.deleteRoom = async (req, res, next) => {
   const { id } = req.body;
   //   if (!id) {
   //     return res
@@ -730,7 +730,7 @@ exports.deleteRoom = async (req, res) => {
   }
 };
 
-exports.deleteMessage = async (req, res) => {
+exports.deleteMessage = async (req, res, next) => {
   const { id } = req.body;
 //   if (!id) {
 //     return res

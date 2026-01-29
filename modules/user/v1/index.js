@@ -68,7 +68,7 @@ router.post(
 );
 router.post(
   "/view_contact",
-  // authentication,
+  authentication,
   validation.validateViewContact,
   userController.viewContact
 );

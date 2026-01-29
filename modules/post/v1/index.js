@@ -65,7 +65,7 @@ router.post(
 );
 router.post(
   "/best_service_providers",
-  validation.bestServiceProvidersValidator,
+  // validation.bestServiceProvidersValidator,
   postController.bestServiceProviders
 );
 router.post(

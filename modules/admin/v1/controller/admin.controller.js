@@ -10,7 +10,7 @@ const { responseStatusCodes, responseMessages } = require("../../../../helpers/a
 const { getImageUrlPublic, deleteImageFromS3 } = require("../../../../helpers/utils");
 require("dotenv").config();
 
-const getAdminAds = async (req, res) => {
+const getAdminAds = async (req, res, next) => {
     try {
         const { date, location } = req.query;
         let whereClause = {};
@@ -69,7 +69,7 @@ const getAdminAds = async (req, res) => {
 
 };
 
-const getAllUsers = async (req, res) => {
+const getAllUsers = async (req, res, next) => {
     try {
         const users = await User.findAll({});
         const usersWithProfileUrls = await Promise.all(users.map(async (user) => {
@@ -86,7 +86,7 @@ const getAllUsers = async (req, res) => {
     }
 };
 
-const blockUserById = async (req, res) => {
+const blockUserById = async (req, res, next) => {
     try {
         const { id } = req.query;
         const user = await User.findOne({
@@ -109,7 +109,7 @@ const blockUserById = async (req, res) => {
     }
 };
 
-const deleteAdminAd = async (req, res) => {
+const deleteAdminAd = async (req, res, next) => {
     try {
         const { id } = req.query;
         // if (!id) {
@@ -141,7 +141,7 @@ const deleteAdminAd = async (req, res) => {
     }
 };
 
-const getAllAdLocations = async (req, res) => {
+const getAllAdLocations = async (req, res, next) => {
     try {
         const adLocations = await AdLocation.findAll();
         const uniquePlaces = Array.from(

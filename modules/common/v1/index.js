@@ -18,5 +18,6 @@ router.delete(
 router.get("/blocked-users", commonController.getBlockedUsers);
 router.get("/get-all-users", commonController.getAllUsers);
 router.get("/check-phone", commonController.checkPhone);
+router.get("/get-referrel-codes", commonController.getReferralCodes);
 
 module.exports = router;

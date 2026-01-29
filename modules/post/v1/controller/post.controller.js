@@ -11,7 +11,8 @@ const sequelize = require("../../../../config/db");
 const UserSearch = require("../../../../models/userSearch.model");
 const BlockedUser = require("../../../../models/blockedUser.model");
 const admin = require("../../../../helpers/firebase");
-const BlockedUser = require("../../../../models/blockedUser.model");
+const path = require("path");
+const sharp = require("sharp");
 
 const messaging = admin.messaging();
 const {
@@ -35,7 +36,7 @@ function generateAdId() {
   return parseInt(userId);
 }
 
-exports.createAd = async (req, res) => {
+exports.createAd = async (req, res, next) => {
   const data = req.body;
   // if (!data.title || !data.description || !data.ad_type || !data.category || !data.ad_prices) {
   //     return res.status(responseStatusCodes.badRequest).json({ success: false, message: responseMessages.invalidRequest });
@@ -153,7 +154,8 @@ exports.updateAdImage = async (req, res, next) => {
       await ad.save();
       await AdImage.bulkCreate(adImages);
     } else {
-      const logoPath = path.join(__dirname, "../assets/logo2.png");
+      const logoPath = path.join(__dirname, "../../../../assets/logo2.png");
+      
       const generatedFile = `${ad_id}_auto.png`;
       const ad = await Ad.findOne({ where: { ad_id: ad_id } });
       if (!ad) {
@@ -247,7 +249,7 @@ exports.updateAdImage = async (req, res, next) => {
   }
 };
 
-exports.deletAdImage = async (req, res) => {
+exports.deletAdImage = async (req, res, next) => {
   const { id } = req.body;
   //   if (!id) {
   //     return res
@@ -280,7 +282,7 @@ exports.deletAdImage = async (req, res) => {
   }
 };
 
-exports.updateAdAddress = async (req, res) => {
+exports.updateAdAddress = async (req, res, next) => {
   const {
     ad_id,
     country,
@@ -390,7 +392,7 @@ exports.updateAdAddress = async (req, res) => {
   }
 };
 
-exports.deleteAd = async (req, res) => {
+exports.deleteAd = async (req, res, next) => {
   const { adId } = req.body;
   if (!adId) {
     // return res
@@ -427,7 +429,7 @@ exports.deleteAd = async (req, res) => {
   }
 };
 
-exports.getAdDetails = async (req, res) => {
+exports.getAdDetails = async (req, res, next) => {
   try {
     const userId = req.body.user_id;
     let wishLists;
@@ -476,7 +478,7 @@ exports.getAdDetails = async (req, res) => {
   }
 };
 
-exports.myAds = async (req, res) => {
+exports.myAds = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const ads = await Ad.findAll({
@@ -539,7 +541,7 @@ const insertAdViewCount = async (userId, adId) => {
   }
 };
 
-exports.getRecentUnsavedPost = async (req, res) => {
+exports.getRecentUnsavedPost = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const ad = await Ad.findOne({
@@ -576,7 +578,7 @@ exports.getRecentUnsavedPost = async (req, res) => {
   }
 };
 
-exports.searchCategories = async (req, res) => {
+exports.searchCategories = async (req, res, next) => {
   try {
     const { keyword, ad_type } = req.body;
     // if (!keyword || !ad_type) {
@@ -603,7 +605,7 @@ exports.searchCategories = async (req, res) => {
   }
 };
 
-exports.recommentedPosts = async (req, res) => {
+exports.recommentedPosts = async (req, res, next) => {
   try {
     const page = parseInt(req.body.page);
     const perPage = 16;
@@ -763,7 +765,7 @@ exports.recommentedPosts = async (req, res) => {
   }
 };
 
-exports.getAllPosts = async (req, res) => {
+exports.getAllPosts = async (req, res, next) => {
   let posts = await Ad.findAll({
     where: {
       ad_status: "online",
@@ -780,7 +782,7 @@ exports.getAllPosts = async (req, res) => {
   return res.success(responseMessages.allAds, posts);
 };
 
-exports.searchAds = async (req, res) => {
+exports.searchAds = async (req, res, next) => {
   try {
     const { keyword, page = 1, min_price, max_price } = req.body;
     // if (!keyword) {
@@ -852,7 +854,7 @@ exports.searchAds = async (req, res) => {
   }
 };
 
-exports.rentCategoryPosts = async (req, res) => {
+exports.rentCategoryPosts = async (req, res, next) => {
   try {
     const {
       ad_type,
@@ -1051,7 +1053,7 @@ exports.rentCategoryPosts = async (req, res) => {
       req.originalUrl.split("?")[0]
     }`;
     response = {
-      ...formatPagination({
+      pagination: formatPagination({
         page: Number(page),
         perPage,
         total: count,
@@ -1069,7 +1071,7 @@ exports.rentCategoryPosts = async (req, res) => {
   }
 };
 
-exports.bestServiceProviders = async (req, res, next) => {
+exports.bestServiceProviders = async (req, res, next) => {  
   try {
     const perPage = 10;
     const {
@@ -1217,99 +1219,102 @@ exports.bestServiceProviders = async (req, res, next) => {
       req.originalUrl.split("?")[0]
     }`;
     const buildUrl = (pageNum) => `${fullUrl}?page=${pageNum}`;
-    const response = {
-      current_page: page,
-      data: await Promise.all(
-        ads.map(async (ad) => {
-          return {
-            id: ad.dataValues.ad_id,
-            ad_id: ad.dataValues.ad_id,
-            user_id: ad.dataValues.user_id,
-            title: ad.dataValues.title,
-            category: ad.dataValues.category,
-            description: ad.dataValues.description,
-            ad_type: ad.dataValues.ad_type,
-            ad_status: ad.dataValues.ad_status,
-            ad_stage: ad.dataValues.ad_stage,
-            ad_wish_lists_count: ad.dataValues.ad_wish_lists_count,
-            ad_views_count: ad.dataValues.ad_views_count,
-            distance: ad.dataValues.distance,
-            createdAt: ad.dataValues.createdAt.toISOString(),
-            updatedAt: ad.dataValues.updatedAt.toISOString(),
-            ad_price_details: ad.dataValues.ad_price_details.map(
-              (priceDetail) => ({
-                id: priceDetail.dataValues.id,
-                ad_id: priceDetail.dataValues.ad_id,
-                rent_duration: priceDetail.dataValues.rent_duration,
-                rent_price: priceDetail.dataValues.rent_price,
-                createdAt: priceDetail.dataValues.createdAt.toISOString(),
-                updatedAt: priceDetail.dataValues.updatedAt.toISOString(),
-              })
-            ),
-            ad_images: await Promise.all(
-              ad.dataValues.ad_images.map(async (image) => {
-                return {
-                  id: image.dataValues.id,
-                  ad_id: image.dataValues.ad_id,
-                  image: image.dataValues.image,
-                  createdAt: image.dataValues.createdAt.toISOString(),
-                  updatedAt: image.dataValues.updatedAt.toISOString(),
-                };
-              })
-            ),
-            ad_location: {
-              id: ad.dataValues.ad_location.id,
-              ad_id: ad.dataValues.ad_location.ad_id,
-              locality: ad.dataValues.ad_location.locality ?? "",
-              place: ad.dataValues.ad_location.place ?? "",
-              district: ad.dataValues.ad_location.district ?? "",
-              state: ad.dataValues.ad_location.state ?? "",
-              country: ad.dataValues.ad_location.country ?? "",
-              longitude: `${ad.dataValues.ad_location.longitude}`,
-              latitude: `${ad.dataValues.ad_location.latitude}`,
-              createdAt: ad.dataValues.ad_location.createdAt.toISOString(),
-              updatedAt: ad.dataValues.ad_location.updatedAt.toISOString(),
-            },
-          };
-        })
-      ),
-      first_page_url: buildUrl(1),
-      from: offset + 1,
-      last_page: totalPages,
-      last_page_url: buildUrl(totalPages),
-      links: (links = [
-        {
-          url: page > 1 ? buildUrl(page - 1) : null,
-          label: "&laquo; Previous",
-          active: page > 1,
-        },
-        {
-          url: buildUrl(page),
-          label: `${page}`,
-          active: true,
-        },
-        {
-          url: page < totalPages ? buildUrl(page + 1) : null,
-          label: "Next &raquo;",
-          active: page < totalPages,
-        },
-      ]),
-      next_page_url: page < totalPages ? buildUrl(page + 1) : null,
-      path: fullUrl,
-      per_page: perPage,
-      prev_page_url: page > 1 ? buildUrl(page - 1) : null,
-      to: Math.min(offset + perPage, count),
-      total: count,
+    // const response = {
+    //   current_page: page,
+    //   data: await Promise.all(
+    //     ads.map(async (ad) => {
+    //       return {
+    //         id: ad.dataValues.ad_id,
+    //         ad_id: ad.dataValues.ad_id,
+    //         user_id: ad.dataValues.user_id,
+    //         title: ad.dataValues.title,
+    //         category: ad.dataValues.category,
+    //         description: ad.dataValues.description,
+    //         ad_type: ad.dataValues.ad_type,
+    //         ad_status: ad.dataValues.ad_status,
+    //         ad_stage: ad.dataValues.ad_stage,
+    //         ad_wish_lists_count: ad.dataValues.ad_wish_lists_count,
+    //         ad_views_count: ad.dataValues.ad_views_count,
+    //         distance: ad.dataValues.distance,
+    //         createdAt: ad.dataValues.createdAt.toISOString(),
+    //         updatedAt: ad.dataValues.updatedAt.toISOString(),
+    //         ad_price_details: ad.dataValues.ad_price_details.map(
+    //           (priceDetail) => ({
+    //             id: priceDetail.dataValues.id,
+    //             ad_id: priceDetail.dataValues.ad_id,
+    //             rent_duration: priceDetail.dataValues.rent_duration,
+    //             rent_price: priceDetail.dataValues.rent_price,
+    //             createdAt: priceDetail.dataValues.createdAt.toISOString(),
+    //             updatedAt: priceDetail.dataValues.updatedAt.toISOString(),
+    //           })
+    //         ),
+    //         ad_images: await Promise.all(
+    //           ad.dataValues.ad_images.map(async (image) => {
+    //             return {
+    //               id: image.dataValues.id,
+    //               ad_id: image.dataValues.ad_id,
+    //               image: image.dataValues.image,
+    //               createdAt: image.dataValues.createdAt.toISOString(),
+    //               updatedAt: image.dataValues.updatedAt.toISOString(),
+    //             };
+    //           })
+    //         ),
+    //         ad_location: {
+    //           id: ad.dataValues.ad_location.id,
+    //           ad_id: ad.dataValues.ad_location.ad_id,
+    //           locality: ad.dataValues.ad_location.locality ?? "",
+    //           place: ad.dataValues.ad_location.place ?? "",
+    //           district: ad.dataValues.ad_location.district ?? "",
+    //           state: ad.dataValues.ad_location.state ?? "",
+    //           country: ad.dataValues.ad_location.country ?? "",
+    //           longitude: `${ad.dataValues.ad_location.longitude}`,
+    //           latitude: `${ad.dataValues.ad_location.latitude}`,
+    //           createdAt: ad.dataValues.ad_location.createdAt.toISOString(),
+    //           updatedAt: ad.dataValues.ad_location.updatedAt.toISOString(),
+    //         },
+    //       };
+    //     })
+    //   ),
+    //   first_page_url: buildUrl(1),
+    //   from: offset + 1,
+    //   last_page: totalPages,
+    //   last_page_url: buildUrl(totalPages),
+    //   links: (links = [
+    //     {
+    //       url: page > 1 ? buildUrl(page - 1) : null,
+    //       label: "&laquo; Previous",
+    //       active: page > 1,
+    //     },
+    //     {
+    //       url: buildUrl(page),
+    //       label: `${page}`,
+    //       active: true,
+    //     },
+    //     {
+    //       url: page < totalPages ? buildUrl(page + 1) : null,
+    //       label: "Next &raquo;",
+    //       active: page < totalPages,
+    //     },
+    //   ]),
+    //   next_page_url: page < totalPages ? buildUrl(page + 1) : null,
+    //   path: fullUrl,
+    //   per_page: perPage,
+    //   prev_page_url: page > 1 ? buildUrl(page - 1) : null,
+    //   to: Math.min(offset + perPage, count),
+    //   total: count,
+    // };
+    const formattedAds = await Promise.all(
+      ads.map((ad) => formatAd(ad, { userId: user_id }))
+    );
+    response = {
+      pagination: formatPagination({
+        page: Number(page),
+        perPage,
+        total: count,
+        path: fullUrl,
+      }),
+      data: formattedAds,
     };
-    // res.status(responseStatusCodes.success).json({
-    //   ...formatPagination({
-    //     page: Number(page),
-    //     perPage,
-    //     total: count,
-    //     path: fullUrl,
-    //   }),
-    //   data: formattedAds,
-    // });
     return res.success(responseMessages.bestServiceProviders, response);
   } catch (error) {
     // res
@@ -1319,7 +1324,7 @@ exports.bestServiceProviders = async (req, res, next) => {
   }
 };
 
-exports.adCategoriesFor = async (req, res) => {
+exports.adCategoriesFor = async (req, res, next) => {
   try {
     const adCategoriesArray = [];
     // res.status(responseStatusCodes.success).json(adCategoriesArray);
@@ -1332,7 +1337,7 @@ exports.adCategoriesFor = async (req, res) => {
   }
 };
 
-exports.addToWishlist = async (req, res) => {
+exports.addToWishlist = async (req, res, next) => {
   try {
     const { ad_id } = req.body;
     // if (!ad_id) {
@@ -1371,7 +1376,7 @@ exports.addToWishlist = async (req, res) => {
   }
 };
 
-exports.changeOnlineStatus = async (req, res) => {
+exports.changeOnlineStatus = async (req, res, next) => {
   try {
     const { ad_id } = req.body;
     // if (!ad_id) {

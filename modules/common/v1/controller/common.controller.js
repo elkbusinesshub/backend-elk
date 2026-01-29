@@ -19,8 +19,10 @@ const {
   responseStatusCodes,
   responseMessages,
 } = require("../../../../helpers/appConstants");
+const ReferralCode = require("../../../../models/referralCode.model");
+const ReferralCodeLogin = require("../../../../models/referralCodeLogin.model");
 
-exports.priceCategories = async (req, res) => {
+exports.priceCategories = async (req, res, next) => {
   try {
     const priceCategories = await PriceCategory.findAll();
     const groupedCategories = priceCategories.reduce((group, item) => {
@@ -36,7 +38,7 @@ exports.priceCategories = async (req, res) => {
     // res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
   }
 };
-exports.addPriceCategories = async (req, res) => {
+exports.addPriceCategories = async (req, res, next) => {
   try {
     const {category, title} = req.body;
     const priceCategories = await PriceCategory.findOne({where:{title:title,category:category}});
@@ -72,7 +74,7 @@ exports.deletePriceCategories = async (req,res)=>{
   }
 }
 
-exports.clearDatabase = async (req, res)=>{
+exports.clearDatabase = async (req, res, next)=>{
   try{
     await AdLocation.drop();
     await AdImage.drop();
@@ -136,3 +138,12 @@ exports.checkPhone = async (req, res, next) => {
     return next(error);
   }
 };
+
+exports.getReferralCodes = async (req,res,next) => {
+  try{
+    let codes = await ReferralCode.findAll()
+    return res.success('Ok',{codes});
+  }catch(e){
+    return next(e); 
+  }
+} 
