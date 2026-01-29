@@ -101,7 +101,7 @@ module.exports = {
       const schema = joi.object({
         name: joi.string().min(2).max(100).required().label("Name"),
         description: joi.string().min(2).max(100).required(),
-        user_id: joi.string().required(),
+        user_id: joi.number().required(),
       });
 
       await schema.validateAsync(req.body);

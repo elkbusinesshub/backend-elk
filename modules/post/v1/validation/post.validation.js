@@ -102,6 +102,8 @@ module.exports = {
   recommentedPostsValidator: async (req, res, next) => {
     try {
       const schema = joi.object({
+        latitude: joi.number().optional(),
+        longitude: joi.number().optional(),
         page: joi.number().integer().min(1).required(),
         id: joi.number().integer().optional(),
       });

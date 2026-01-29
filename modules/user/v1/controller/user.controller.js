@@ -773,7 +773,7 @@ exports.userWithAds = async (req, res, next) => {
       user_id: user.user_id,
       name: user.name,
       email_uid: user.email_uid,
-      profile: user.profile ? await getImageUrl(user.profile) : null,
+      profile: user.profile ? getImageUrlPublic(user.profile) : null,
       description: user.description,
       notification_token: user.notification_token,
       ads: formattedAds,
@@ -874,6 +874,7 @@ exports.viewContact = async (req, res, next) => {
     //     .status(responseStatusCodes.badRequest)
     //     .json({ message: responseMessages.invalidRequest });
     // }
+    console.log(req.user)
     const viewerId = req.user.id;
     const user = await User.findOne({ where: { user_id: userId } });
     if (!user) {
