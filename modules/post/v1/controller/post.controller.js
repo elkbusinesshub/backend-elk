@@ -561,10 +561,10 @@ exports.getRecentUnsavedPost = async (req, res, next) => {
     });
     if (!ad) {
       //   return res.status(responseStatusCodes.success).json({});
-      return res.error(
+      return res.success(
         responseMessages.adNotFound,
-        null,
-        responseStatusCodes.notFound
+        [],
+        responseStatusCodes.success
       );
     }
     const formattedAd = await formatAd(ad, { includeUser: false });
