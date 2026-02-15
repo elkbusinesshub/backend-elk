@@ -30,6 +30,8 @@ module.exports.responseMessages = {
   adDeleted: "Ad deleted successfully.",
   adNotFound: "Ad not found",
   adLocationsFetched: "Ad locations fetched successfully.",
+  adminusercreated:"User and Ad created successfully",
+  adminusercreatedalready:"User account already created",
 
   //common
   priceCategoriesFetched: "Price Categories fetched successfully",

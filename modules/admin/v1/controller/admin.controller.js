@@ -9,6 +9,9 @@ const AdWishLists = require("../../../../models/adWishList.model");
 const { responseStatusCodes, responseMessages } = require("../../../../helpers/appConstants");
 const { getImageUrlPublic, deleteImageFromS3 } = require("../../../../helpers/utils");
 require("dotenv").config();
+const admin = require('../../../../helpers/firebase'); 
+const messaging = admin.messaging();
+const { getImageUrlPublic, uploadToS3 } = require("../../../../helpers/utils");
 
 const getAdminAds = async (req, res, next) => {
     try {
@@ -133,10 +136,8 @@ const deleteAdminAd = async (req, res, next) => {
         await AdViews.destroy({where: { ad_id: id } });
         await AdWishLists.destroy({where: { ad_id: id } });
         await Ad.destroy({ where: { ad_id: id } });
-        // return res.status(responseStatusCodes.success).json({ success: true, message: responseMessages.adDeleted });
         return res.success(responseMessages.adDeleted);
     } catch (error) {
-        // return res.status(responseStatusCodes.internalServerError).json({ success: false, message: responseMessages.internalServerError, message: error.message });
         return next(error);
     }
 };
@@ -151,12 +152,183 @@ const getAllAdLocations = async (req, res, next) => {
                     .filter(Boolean)
             )
         );       
-        // return res.status(responseStatusCodes.success).json({ success: true, adLocations, list: uniquePlaces });
         return res.success(responseMessages.adLocationsFetched,{ data: adLocations, list: uniquePlaces})
     } catch (error) {
         return next(error);
-        // return res.status(responseStatusCodes.internalServerError).json({ success: false, message: responseMessages.internalServerError, message: error.message });
     }
 };
 
-module.exports = { getAdminAds, deleteAdminAd, getAllAdLocations, getAllUsers, blockUserById };
+const generateUserId = () => {
+  const timestamp = Date.now();
+  const randomNum = Math.floor(Math.random() * 1000);
+  const userId = `${timestamp}${randomNum}`;
+  return parseInt(userId);
+};
+
+function generateAdId() {
+  const timestamp = Date.now();
+  const randomNum = Math.floor(Math.random() * 1000);
+  const userId = `${timestamp}${randomNum}`;
+  return parseInt(userId);
+}
+
+const createUserAdAdmin = async (req, res, next) => {
+  try {
+    const { name, phone } = req.body;
+    let user = await User.findOne({ where: { mobile_number: `+91 ${phone}` } });
+    if (user) {
+        return res.success(responseMessages.adminusercreatedalready)
+    }
+
+    const newUser = await User.create({
+      name: name || "User",
+      user_id: generateUserId(),
+      mobile_number: `+91 ${phone}`,
+      is_logged: false
+    });
+    const db = admin.firestore();
+    const privacyRef = db
+      .collection("privacy")
+      .doc(newUser.user_id.toString());
+
+    await privacyRef.set({
+      name: newUser.name,
+      userId: newUser.user_id,
+      privacy: false,
+    });
+
+    const ads = JSON.parse(req.body.ads);
+    const location = JSON.parse(req.body.location);
+
+    console.log(location)
+
+    const createdAds = await Promise.all(
+      ads.map(async (adData) => {
+        const ad = await Ad.create({
+          ad_id: generateAdId(),
+          user_id: newUser.user_id,
+          title: adData.title,
+          description: adData.description,
+          category: adData.category,
+          ad_type: adData.type,
+          ad_stage: 3,
+          ad_status: "online",
+        });
+
+        return ad;
+      }),
+    );
+    const adIdMap = createdAds.map((ad) => ad.ad_id);
+
+    const uploadTasks = req.files
+      .map((file) => {
+        const match = file.fieldname.match(/ads\[(\d+)\]\[images\]/);
+        if (!match) return null;
+        const adIndex = Number(match[1]);
+        const fileName = `${file.originalname}`;
+        return {
+            adIndex,
+            promise: uploadToS3(file, fileName).then((res) => ({
+                image: res.image,
+            })),
+        };
+        // return {
+        //   adIndex,
+        //   promise: s3.send(command).then(() => ({
+        //     image: fileName,
+        //   })),
+        // };
+      })
+      .filter(Boolean);
+
+    const uploadResults = await Promise.all(
+      uploadTasks.map((task) => task.promise),
+    );
+
+    uploadTasks.forEach((task, index) => {
+      if (!ads[task.adIndex].images) {
+        ads[task.adIndex].images = [];
+      }
+      ads[task.adIndex].images.push(uploadResults[index].image);
+    });
+    console.log("...",ads)
+    const usersToNotify = await User.findAll({
+      attributes: ["notification_token"],
+    });
+
+    const tokens = usersToNotify
+      .map(u => u.notification_token)
+      .filter(Boolean);
+
+    await Promise.all(
+      ads.map(async (adData, index) => {
+        const ad_id = adIdMap[index];
+        await AdLocation.create({
+          ad_id,
+          place: location.place,
+          state: location.state,
+          country: location.country,
+          latitude: location.latitude,
+          longitude: location.longitude,
+        });
+
+        if (adData.images && adData.images.length > 0) {
+          const imageRecords = adData.images.map((img) => ({
+            ad_id,
+            image: img,
+          }));
+          await AdImage.bulkCreate(imageRecords);
+        }
+        else{
+            await AdImage.create({
+                ad_id,
+                image: "1761544844899520_auto.png"
+            })
+        }
+
+        if (adData.prices && adData.prices.length > 0) {
+          const priceRecords = adData.prices.map((detail) => ({
+            ad_id,
+            rent_duration: detail.unit,
+            rent_price: detail.price,
+          }));
+          await AdPriceDetails.bulkCreate(priceRecords);
+        }
+        
+      }),
+    );
+    for (let index = 0; index < ads.length; index++) {
+      const adData = ads[index];
+      const ad_id = adIdMap[index];
+
+      if (tokens.length === 0) {
+        console.log("No users to notify");
+        break;
+      }
+
+      const message = {
+        notification: {
+          title: "A Fresh Listing Awaits! 🔥",
+          body: `New ad posted: "${adData.title}". Tap to view now!`,
+        },
+        data: {
+          type: "adpost",
+          ad_id: ad_id.toString(),
+        },
+        tokens,
+      };
+
+      try {
+        await messaging.sendEachForMulticast(message);
+      } catch (err) {
+        console.error("FCM send error for ad", ad_id, err.message);
+      }
+    }
+    return res.success(responseMessages.adminusercreated);
+  } catch (error) {
+    console.error(error);
+    return next(error);
+  }
+};
+
+module.exports = { getAdminAds, deleteAdminAd, getAllAdLocations, getAllUsers, blockUserById, createUserAdAdmin };
