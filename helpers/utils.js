@@ -6,6 +6,7 @@ const {
   DeleteObjectCommand,
 } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const { Op, literal } = require('sequelize');
 
 require("dotenv").config();
 
@@ -114,7 +115,88 @@ async function deleteImageFromS3(imageKey) {
 }
 
 // utils/formatAd.js
-async function formatAd(ad, options = {}) {
+// async function formatAd(ad, options = {}) {
+//   const includeUser = options.includeUser ?? true;
+//   const includeCounts = options.includeCounts ?? false;
+
+//   return {
+//     id: ad.ad_id,
+//     ad_id: ad.ad_id,
+//     user_id: ad.user_id,
+//     title: ad.title,
+//     category: ad.category,
+//     description: ad.description,
+//     ad_type: ad.ad_type,
+//     ad_status: ad.ad_status,
+//     ad_stage: ad.ad_stage,
+//     createdAt: ad.createdAt?.toISOString(),
+//     updatedAt: ad.updatedAt?.toISOString(),
+//     ...(ad.dataValues?.distance !== undefined && {
+//       distance: ad.dataValues.distance,
+//     }),
+//     ...(includeCounts
+//       ? {
+//           ad_wish_lists_count: ad.dataValues?.ad_wish_lists_count ?? 0,
+//           ad_views_count: ad.dataValues?.ad_views_count ?? 0,
+//         }
+//       : {}),
+//     user:
+//       includeUser && ad.user
+//         ? {
+//             id: ad.user.id,
+//             user_id: ad.user.user_id,
+//             name: ad.user.name,
+//             email: ad.user.email,
+//             email_uid: ad.user.email_uid,
+//             mobile_number: ad.user.mobile_number,
+//             profile: ad.user.profile
+//               ? getImageUrlPublic(ad.user.profile)
+//               : null,
+//             description: ad.user.description,
+//             notification_token: ad.user.notification_token,
+//           }
+//         : undefined,
+//     ad_images: ad.ad_images
+//       ? await Promise.all(
+//           ad.ad_images.map(async (image) => ({
+//             id: image.id,
+//             ad_id: image.ad_id,
+//             image: image.image ? getImageUrlPublic(image.image) : null,
+//             createdAt: image.createdAt?.toISOString(),
+//             updatedAt: image.updatedAt?.toISOString(),
+//           }))
+//         )
+//       : [],
+//     ad_location: ad.ad_location
+//       ? {
+//           id: ad.ad_location.id,
+//           ad_id: ad.ad_location.ad_id,
+//           locality: ad.ad_location.locality ?? "",
+//           place: ad.ad_location.place ?? "",
+//           district: ad.ad_location.district ?? "",
+//           state: ad.ad_location.state ?? "",
+//           country: ad.ad_location.country ?? "",
+//           longitude: `${ad.ad_location.longitude}`,
+//           latitude: `${ad.ad_location.latitude}`,
+//           createdAt: ad.ad_location.createdAt?.toISOString(),
+//           updatedAt: ad.ad_location.updatedAt?.toISOString(),
+//         }
+//       : null,
+//     ad_price_details: ad.ad_price_details
+//       ? ad.ad_price_details.map((priceDetail) => ({
+//           id: priceDetail.id,
+//           ad_id: priceDetail.ad_id,
+//           rent_duration: priceDetail.rent_duration,
+//           rent_price: priceDetail.rent_price,
+//           createdAt: priceDetail.createdAt?.toISOString(),
+//           updatedAt: priceDetail.updatedAt?.toISOString(),
+//         }))
+//       : [],
+//   };
+// }
+
+// utils/formatAd.js - OPTIMIZED VERSION
+function formatAd(ad, options = {}) {
   const includeUser = options.includeUser ?? true;
   const includeCounts = options.includeCounts ?? false;
 
@@ -148,23 +230,19 @@ async function formatAd(ad, options = {}) {
             email: ad.user.email,
             email_uid: ad.user.email_uid,
             mobile_number: ad.user.mobile_number,
-            profile: ad.user.profile
-              ? getImageUrlPublic(ad.user.profile)
-              : null,
+            profile: ad.user.profile ? getImageUrlPublic(ad.user.profile) : null,
             description: ad.user.description,
             notification_token: ad.user.notification_token,
           }
         : undefined,
     ad_images: ad.ad_images
-      ? await Promise.all(
-          ad.ad_images.map(async (image) => ({
-            id: image.id,
-            ad_id: image.ad_id,
-            image: image.image ? getImageUrlPublic(image.image) : null,
-            createdAt: image.createdAt?.toISOString(),
-            updatedAt: image.updatedAt?.toISOString(),
-          }))
-        )
+      ? ad.ad_images.map((image) => ({ 
+          id: image.id,
+          ad_id: image.ad_id,
+          image: image.image ? getImageUrlPublic(image.image) : null,
+          createdAt: image.createdAt?.toISOString(),
+          updatedAt: image.updatedAt?.toISOString(),
+        }))
       : [],
     ad_location: ad.ad_location
       ? {
@@ -232,6 +310,38 @@ function formatPagination({ page, perPage, total, path }) {
   };
 }
 
+// utils/distance.util.js
+
+
+/**
+ * Calculate distance between two coordinates using Haversine formula
+ */
+function getDistanceCalculation(lat, lng) {
+  const safeLat = parseFloat(lat);
+  const safeLng = parseFloat(lng);
+  
+  if (isNaN(safeLat) || isNaN(safeLng)) {
+    throw new Error('Invalid coordinates for distance calculation');
+  }
+
+  return literal(`(
+    6371 * acos(
+      cos(radians(${safeLat})) * 
+      cos(radians(ad_location.latitude)) * 
+      cos(radians(ad_location.longitude) - radians(${safeLng})) + 
+      sin(radians(${safeLat})) * 
+      sin(radians(ad_location.latitude))
+    )
+  )`);
+}
+
+function buildLocationWhere(location_type, location) {
+  return location_type === "locality" || location_type === "place"
+    ? { [Op.or]: [{ locality: location }, { place: location }] }
+    : { [Op.or]: [{ state: location }, { country: location }] };
+}
+
+
 module.exports = {
   globalResponseHandler,
   globalErrorHandler,
@@ -244,5 +354,7 @@ module.exports = {
   uploadToS3,
   formatAd,
   formatPagination,
-  getImageUrlPublic
+  getImageUrlPublic,
+  getDistanceCalculation,
+  buildLocationWhere
 };

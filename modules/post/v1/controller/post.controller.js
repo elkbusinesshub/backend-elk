@@ -24,8 +24,9 @@ const {
   deleteImageFromS3,
   uploadToS3,
   formatAd,
-  formatPagination,
+  formatPagination
 } = require("../../../../helpers/utils");
+const {fetchBlockedUserIds, fetchUserSearches, buildAdsQuery, buildServiceProvidersQuery} = require("../service/post.service");
 
 require("dotenv").config();
 
@@ -605,162 +606,221 @@ exports.searchCategories = async (req, res, next) => {
   }
 };
 
+// exports.recommentedPosts = async (req, res, next) => {
+//   try {
+//     const page = parseInt(req.body.page);
+//     const perPage = 16;
+//     const offset = (page - 1) * perPage;
+//     let userSearches = [];
+//     if (req.body.id) {
+//       userSearches = await UserSearch.findAll({
+//         where: {
+//           user_id: req.body.id,
+//         },
+//         order: [["createdAt", "ASC"]],
+//         limit: 2,
+//         raw: true,
+//         nest: true,
+//       });
+//     }
+//     let blockedUserIds = [];
+//     if (req.body.id) {
+//       const blockedRecords = await BlockedUser.findAll({
+//         where: {
+//           [Op.or]: [{ blocker_id: req.body.id }, { blocked_id: req.body.id }],
+//         },
+//         raw: true,
+//       });
+
+//       blockedUserIds = blockedRecords.map((record) =>
+//         record.blocker_id !== req.body.id
+//           ? record.blocked_id
+//           : record.blocker_id
+//       );
+//     }
+
+//     let adsQuery = {
+//       where: {
+//         ad_status: "online",
+//         ad_type: "rent",
+//         ad_stage: 3,
+//       },
+//       include: [
+//         { model: User, as: "user" },
+//         { model: AdImage, as: "ad_images" },
+//         { model: AdPriceDetails, as: "ad_price_details" },
+//       ],
+//       distinct: true,
+//       limit: perPage,
+//       offset: offset,
+//     };
+//     if (req.body.id) {
+//       adsQuery.where.user_id = {
+//         [Op.and]: [{ [Op.ne]: req.body.id }, { [Op.notIn]: blockedUserIds }],
+//       };
+//     }
+//     if (userSearches.length !== 0) {
+//       const firstSearch = userSearches[0];
+//       const hasLocationDetails =
+//         firstSearch.location &&
+//         firstSearch.location_type &&
+//         firstSearch.latitude !== null &&
+//         firstSearch.longitude !== null;
+//       if (hasLocationDetails) {
+//         if (
+//           userSearches[0].location_type === "locality" ||
+//           userSearches[0].location_type === "place"
+//         ) {
+//           adsQuery.include.push({
+//             model: AdLocation,
+//             as: "ad_location",
+//             where: {
+//               [Op.or]: [
+//                 { locality: userSearches[0].location },
+//                 { place: userSearches[0].location },
+//               ],
+//             },
+//           });
+//         } else {
+//           adsQuery.include.push({
+//             model: AdLocation,
+//             as: "ad_location",
+//             where: {
+//               [Op.or]: [
+//                 { state: userSearches[0].location },
+//                 { country: userSearches[0].location },
+//               ],
+//             },
+//           });
+//         }
+//         adsQuery.attributes = {
+//           include: [
+//             [
+//               literal(`(
+//                                 SELECT (6371 * 
+//                                     acos(cos(radians(${userSearches[0].latitude})) * cos(radians(ad_location.latitude)) * 
+//                                     cos(radians(ad_location.longitude) - radians(${userSearches[0].longitude})) + 
+//                                     sin(radians(${userSearches[0].latitude})) * sin(radians(ad_location.latitude)))
+//                                 ) AS distance
+//                             )`),
+//               "distance",
+//             ],
+//           ],
+//         };
+//         adsQuery.order = [[sequelize.literal("distance"), "ASC"]];
+//       } else {
+//         adsQuery.include.push({
+//           model: AdLocation,
+//           as: "ad_location",
+//         });
+//       }
+//     } else {
+//       adsQuery.include.push({
+//         model: AdLocation,
+//         as: "ad_location",
+//         required: true,
+//       });
+//       if (req.body.latitude && req.body.longitude) {
+//         adsQuery.attributes = {
+//           include: [
+//             [
+//               literal(`(
+//                                 SELECT (6371 * 
+//                                     acos(cos(radians(${req.body.latitude})) * cos(radians(ad_location.latitude)) * 
+//                                     cos(radians(ad_location.longitude) - radians(${req.body.longitude})) + 
+//                                     sin(radians(${req.body.latitude})) * sin(radians(ad_location.latitude)))
+//                                 ) AS distance
+//                             )`),
+//               "distance",
+//             ],
+//           ],
+//         };
+//         adsQuery.order = [[sequelize.literal("distance"), "ASC"]];
+//       }
+//     }
+//     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
+//     const fullUrl = `${req.protocol}://${req.get("host")}${
+//       req.originalUrl.split("?")[0]
+//     }`;
+//     const pagination = formatPagination({
+//       page: Number(page),
+//       perPage,
+//       total: count,
+//       path: fullUrl,
+//     });
+//     const formattedAds = await Promise.all(ads.map((ad) => formatAd(ad)));
+
+//     // res.status(responseStatusCodes.success).json({
+//     //   ...pagination,
+//     //   data: formattedAds,
+//     // });
+//     return res.success(responseMessages.recommentedPosts, {
+//       pagination,
+//       data: formattedAds,
+//     });
+//   } catch (error) {
+//     // res
+//     //   .status(responseStatusCodes.internalServerError)
+//     //   .json({ message: responseMessages.internalServerError });
+//     return next(error);
+//   }
+// };
+
 exports.recommentedPosts = async (req, res, next) => {
   try {
-    const page = parseInt(req.body.page);
+    // 1. INPUT VALIDATION & SANITIZATION
+    const page = Math.max(1, parseInt(req.body.page) || 1);
     const perPage = 16;
     const offset = (page - 1) * perPage;
-    let userSearches = [];
-    if (req.body.id) {
-      userSearches = await UserSearch.findAll({
-        where: {
-          user_id: req.body.id,
-        },
-        order: [["createdAt", "ASC"]],
-        limit: 2,
-        raw: true,
-        nest: true,
-      });
-    }
-    let blockedUserIds = [];
-    if (req.body.id) {
-      const blockedRecords = await BlockedUser.findAll({
-        where: {
-          [Op.or]: [{ blocker_id: req.body.id }, { blocked_id: req.body.id }],
-        },
-        raw: true,
-      });
-
-      blockedUserIds = blockedRecords.map((record) =>
-        record.blocker_id !== req.body.id
-          ? record.blocked_id
-          : record.blocker_id
-      );
+    const userId = req.body.id;
+    
+    // Validate and sanitize coordinates to prevent SQL injection
+    const userLat = req.body.latitude ? parseFloat(req.body.latitude) : null;
+    const userLng = req.body.longitude ? parseFloat(req.body.longitude) : null;
+    
+    if ((userLat && (isNaN(userLat) || userLat < -90 || userLat > 90)) ||
+        (userLng && (isNaN(userLng) || userLng < -180 || userLng > 180))) {
+      // return res.status(400).json({ message: 'Invalid coordinates' });
+      return res.error(responseMessages.invalidCoordinates);
     }
 
-    let adsQuery = {
-      where: {
-        ad_status: "online",
-        ad_type: "rent",
-        ad_stage: 3,
-      },
-      include: [
-        { model: User, as: "user" },
-        { model: AdImage, as: "ad_images" },
-        { model: AdPriceDetails, as: "ad_price_details" },
-      ],
-      distinct: true,
-      limit: perPage,
-      offset: offset,
-    };
-    if (req.body.id) {
-      adsQuery.where.user_id = {
-        [Op.and]: [{ [Op.ne]: req.body.id }, { [Op.notIn]: blockedUserIds }],
-      };
-    }
-    if (userSearches.length !== 0) {
-      const firstSearch = userSearches[0];
-      const hasLocationDetails =
-        firstSearch.location &&
-        firstSearch.location_type &&
-        firstSearch.latitude !== null &&
-        firstSearch.longitude !== null;
-      if (hasLocationDetails) {
-        if (
-          userSearches[0].location_type === "locality" ||
-          userSearches[0].location_type === "place"
-        ) {
-          adsQuery.include.push({
-            model: AdLocation,
-            as: "ad_location",
-            where: {
-              [Op.or]: [
-                { locality: userSearches[0].location },
-                { place: userSearches[0].location },
-              ],
-            },
-          });
-        } else {
-          adsQuery.include.push({
-            model: AdLocation,
-            as: "ad_location",
-            where: {
-              [Op.or]: [
-                { state: userSearches[0].location },
-                { country: userSearches[0].location },
-              ],
-            },
-          });
-        }
-        adsQuery.attributes = {
-          include: [
-            [
-              literal(`(
-                                SELECT (6371 * 
-                                    acos(cos(radians(${userSearches[0].latitude})) * cos(radians(ad_location.latitude)) * 
-                                    cos(radians(ad_location.longitude) - radians(${userSearches[0].longitude})) + 
-                                    sin(radians(${userSearches[0].latitude})) * sin(radians(ad_location.latitude)))
-                                ) AS distance
-                            )`),
-              "distance",
-            ],
-          ],
-        };
-        adsQuery.order = [[sequelize.literal("distance"), "ASC"]];
-      } else {
-        adsQuery.include.push({
-          model: AdLocation,
-          as: "ad_location",
-        });
-      }
-    } else {
-      adsQuery.include.push({
-        model: AdLocation,
-        as: "ad_location",
-        required: true,
-      });
-      if (req.body.latitude && req.body.longitude) {
-        adsQuery.attributes = {
-          include: [
-            [
-              literal(`(
-                                SELECT (6371 * 
-                                    acos(cos(radians(${req.body.latitude})) * cos(radians(ad_location.latitude)) * 
-                                    cos(radians(ad_location.longitude) - radians(${req.body.longitude})) + 
-                                    sin(radians(${req.body.latitude})) * sin(radians(ad_location.latitude)))
-                                ) AS distance
-                            )`),
-              "distance",
-            ],
-          ],
-        };
-        adsQuery.order = [[sequelize.literal("distance"), "ASC"]];
-      }
-    }
+    // 2. PARALLEL DATA FETCHING - Fetch blocked users and searches simultaneously
+    const [userSearches, blockedUserIds] = await Promise.all([
+      userId ? fetchUserSearches(userId) : Promise.resolve([]),
+      userId ? fetchBlockedUserIds(userId) : Promise.resolve([])
+    ]);
+
+    // 3. BUILD OPTIMIZED QUERY
+    const adsQuery = buildAdsQuery({
+      userId,
+      blockedUserIds,
+      userSearches,
+      userLat,
+      userLng,
+      perPage,
+      offset
+    });
+
+    // 4. EXECUTE QUERY
     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
-    const fullUrl = `${req.protocol}://${req.get("host")}${
-      req.originalUrl.split("?")[0]
-    }`;
+
+    // 5. FORMAT RESPONSE
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl.split("?")[0]}`;
     const pagination = formatPagination({
-      page: Number(page),
+      page,
       perPage,
       total: count,
       path: fullUrl,
     });
-    const formattedAds = await Promise.all(ads.map((ad) => formatAd(ad)));
 
-    // res.status(responseStatusCodes.success).json({
-    //   ...pagination,
-    //   data: formattedAds,
-    // });
+    // 6. FORMAT ADS (no async operations inside formatAd now)
+    const formattedAds = ads.map((ad) => formatAd(ad));
+
     return res.success(responseMessages.recommentedPosts, {
       pagination,
       data: formattedAds,
     });
   } catch (error) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
@@ -1071,258 +1131,229 @@ exports.rentCategoryPosts = async (req, res, next) => {
   }
 };
 
-exports.bestServiceProviders = async (req, res, next) => {  
+// exports.bestServiceProviders = async (req, res, next) => {  
+//   try {
+//     const perPage = 10;
+//     const {
+//       location_type,
+//       location,
+//       latitude,
+//       longitude,
+//       page = 1,
+//       user_id,
+//     } = req.body;
+//     const offset = (page - 1) * perPage;
+//     const hasLocation = location_type && location && latitude && longitude;
+//     let adsQuery;
+//     let blockedUserIds = [];
+//     if (user_id) {
+//       const blockedRecords = await BlockedUser.findAll({
+//         where: {
+//           [Op.or]: [{ blocker_id: user_id }, { blocked_id: user_id }],
+//         },
+//         raw: true,
+//       });
+
+//       blockedUserIds = blockedRecords.map((record) =>
+//         record.blocker_id !== user_id ? record.blocked_id : record.blocker_id
+//       );
+//     }
+
+//     if (hasLocation) {
+//       adsQuery = {
+//         where: {
+//           ad_type: "service",
+//           ad_status: "online",
+//           user_id: {
+//             [Op.and]: [{ [Op.ne]: user_id }, { [Op.notIn]: blockedUserIds }],
+//           },
+//           ad_stage: 3,
+//         },
+//         attributes: {
+//           include: [
+//             [
+//               literal(
+//                 `(SELECT COUNT(*) FROM ad_wish_lists WHERE ad_wish_lists.ad_id = Ad.ad_id)`
+//               ),
+//               "ad_wish_lists_count",
+//             ],
+//             [
+//               literal(
+//                 `(SELECT COUNT(*) FROM ad_views WHERE ad_views.ad_id = Ad.ad_id)`
+//               ),
+//               "ad_views_count",
+//             ],
+//             [
+//               literal(`(
+//                                 SELECT (6371 * 
+//                                     acos(cos(radians(${latitude})) * cos(radians(ad_location.latitude)) * 
+//                                     cos(radians(ad_location.longitude) - radians(${longitude})) + 
+//                                     sin(radians(${latitude})) * sin(radians(ad_location.latitude)))
+//                                 ) AS distance
+//                             )`),
+//               "distance",
+//             ],
+//           ],
+//         },
+//         include: [
+//           { model: User, as: "user" },
+//           { model: AdImage, as: "ad_images" },
+//           { model: AdPriceDetails, as: "ad_price_details" },
+//         ],
+//         order: [
+//           [sequelize.literal("ad_wish_lists_count"), "ASC"],
+//           [sequelize.literal("ad_views_count"), "ASC"],
+//           [sequelize.literal("distance"), "ASC"],
+//         ],
+//         distinct: true,
+//         limit: perPage,
+//         offset: offset,
+//       };
+//       if (user_id) {
+//         adsQuery.where.user_id = { [Op.ne]: user_id };
+//       }
+//       if (location_type === "locality" || location_type === "place") {
+//         adsQuery.include.push({
+//           model: AdLocation,
+//           as: "ad_location",
+//           where: {
+//             [Op.or]: [{ locality: location }, { place: location }],
+//           },
+//         });
+//       } else {
+//         adsQuery.include.push({
+//           model: AdLocation,
+//           as: "ad_location",
+//           where: {
+//             [Op.or]: [{ state: location }, { country: location }],
+//           },
+//         });
+//       }
+//     } else {
+//       adsQuery = {
+//         where: {
+//           ad_type: "service",
+//           ad_status: "online",
+//           ad_stage: 3,
+//         },
+//         attributes: {
+//           include: [
+//             [
+//               literal(
+//                 `(SELECT COUNT(*) FROM ad_wish_lists WHERE ad_wish_lists.ad_id = Ad.ad_id)`
+//               ),
+//               "ad_wish_lists_count",
+//             ],
+//             [
+//               literal(
+//                 `(SELECT COUNT(*) FROM ad_views WHERE ad_views.ad_id = Ad.ad_id)`
+//               ),
+//               "ad_views_count",
+//             ],
+//           ],
+//         },
+//         include: [
+//           { model: User, as: "user" },
+//           { model: AdImage, as: "ad_images" },
+//           { model: AdPriceDetails, as: "ad_price_details" },
+//           {
+//             model: AdLocation,
+//             as: "ad_location",
+//           },
+//         ],
+//         order: [
+//           [sequelize.literal("ad_wish_lists_count"), "DESC"],
+//           [sequelize.literal("ad_views_count"), "DESC"],
+//         ],
+//         distinct: true,
+//         limit: perPage,
+//         offset: offset,
+//       };
+//       if (user_id) {
+//         adsQuery.where.user_id = { [Op.ne]: user_id };
+//       }
+//     }
+//     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
+//     const totalPages = Math.ceil(count / perPage);
+//     const fullUrl = `${req.protocol}://${req.get("host")}${
+//       req.originalUrl.split("?")[0]
+//     }`;
+//     const buildUrl = (pageNum) => `${fullUrl}?page=${pageNum}`;
+//     const formattedAds = await Promise.all(
+//       ads.map((ad) => formatAd(ad, { userId: user_id }))
+//     );
+//     response = {
+//       pagination: formatPagination({
+//         page: Number(page),
+//         perPage,
+//         total: count,
+//         path: fullUrl,
+//       }),
+//       data: formattedAds,
+//     };
+//     return res.success(responseMessages.bestServiceProviders, response);
+//   } catch (error) {
+//     // res
+//     //   .status(responseStatusCodes.internalServerError)
+//     //   .json({ message: responseMessages.internalServerError });
+//     return next(error);
+//   }
+// };
+
+exports.bestServiceProviders = async (req, res, next) => {
   try {
+    // 1. INPUT VALIDATION & SANITIZATION
+    const page    = Math.max(1, parseInt(req.body.page) || 1);
     const perPage = 10;
-    const {
-      location_type,
+    const offset  = (page - 1) * perPage;
+
+    const { location_type, location, user_id: userId } = req.body;
+
+    const userLat = req.body.latitude  ? parseFloat(req.body.latitude)  : null;
+    const userLng = req.body.longitude ? parseFloat(req.body.longitude) : null;
+
+    if (
+      (userLat && (isNaN(userLat) || userLat < -90  || userLat > 90))  ||
+      (userLng && (isNaN(userLng) || userLng < -180 || userLng > 180))
+    ) {
+      return res.error(responseMessages.invalidCoordinates);
+    }
+
+    const hasLocation = !!(location_type && location && userLat && userLng);
+
+    // 2. PARALLEL DATA FETCHING
+    const [blockedUserIds] = await Promise.all([
+      userId ? fetchBlockedUserIds(userId) : Promise.resolve([]),
+      // extend with more parallel fetches here if needed
+    ]);
+
+    // 3. BUILD & EXECUTE QUERY
+    const adsQuery = buildServiceProvidersQuery({
+      userId,
+      blockedUserIds,
+      userLat,
+      userLng,
       location,
-      latitude,
-      longitude,
-      page = 1,
-      user_id,
-    } = req.body;
-    const offset = (page - 1) * perPage;
-    const hasLocation = location_type && location && latitude && longitude;
-    let adsQuery;
-    let blockedUserIds = [];
-    if (user_id) {
-      const blockedRecords = await BlockedUser.findAll({
-        where: {
-          [Op.or]: [{ blocker_id: user_id }, { blocked_id: user_id }],
-        },
-        raw: true,
-      });
+      location_type,
+      hasLocation,
+      perPage,
+      offset,
+    });
 
-      blockedUserIds = blockedRecords.map((record) =>
-        record.blocker_id !== user_id ? record.blocked_id : record.blocker_id
-      );
-    }
-
-    if (hasLocation) {
-      adsQuery = {
-        where: {
-          ad_type: "service",
-          ad_status: "online",
-          user_id: {
-            [Op.and]: [{ [Op.ne]: user_id }, { [Op.notIn]: blockedUserIds }],
-          },
-          ad_stage: 3,
-        },
-        attributes: {
-          include: [
-            [
-              literal(
-                `(SELECT COUNT(*) FROM ad_wish_lists WHERE ad_wish_lists.ad_id = Ad.ad_id)`
-              ),
-              "ad_wish_lists_count",
-            ],
-            [
-              literal(
-                `(SELECT COUNT(*) FROM ad_views WHERE ad_views.ad_id = Ad.ad_id)`
-              ),
-              "ad_views_count",
-            ],
-            [
-              literal(`(
-                                SELECT (6371 * 
-                                    acos(cos(radians(${latitude})) * cos(radians(ad_location.latitude)) * 
-                                    cos(radians(ad_location.longitude) - radians(${longitude})) + 
-                                    sin(radians(${latitude})) * sin(radians(ad_location.latitude)))
-                                ) AS distance
-                            )`),
-              "distance",
-            ],
-          ],
-        },
-        include: [
-          { model: User, as: "user" },
-          { model: AdImage, as: "ad_images" },
-          { model: AdPriceDetails, as: "ad_price_details" },
-        ],
-        order: [
-          [sequelize.literal("ad_wish_lists_count"), "ASC"],
-          [sequelize.literal("ad_views_count"), "ASC"],
-          [sequelize.literal("distance"), "ASC"],
-        ],
-        distinct: true,
-        limit: perPage,
-        offset: offset,
-      };
-      if (user_id) {
-        adsQuery.where.user_id = { [Op.ne]: user_id };
-      }
-      if (location_type === "locality" || location_type === "place") {
-        adsQuery.include.push({
-          model: AdLocation,
-          as: "ad_location",
-          where: {
-            [Op.or]: [{ locality: location }, { place: location }],
-          },
-        });
-      } else {
-        adsQuery.include.push({
-          model: AdLocation,
-          as: "ad_location",
-          where: {
-            [Op.or]: [{ state: location }, { country: location }],
-          },
-        });
-      }
-    } else {
-      adsQuery = {
-        where: {
-          ad_type: "service",
-          ad_status: "online",
-          ad_stage: 3,
-        },
-        attributes: {
-          include: [
-            [
-              literal(
-                `(SELECT COUNT(*) FROM ad_wish_lists WHERE ad_wish_lists.ad_id = Ad.ad_id)`
-              ),
-              "ad_wish_lists_count",
-            ],
-            [
-              literal(
-                `(SELECT COUNT(*) FROM ad_views WHERE ad_views.ad_id = Ad.ad_id)`
-              ),
-              "ad_views_count",
-            ],
-          ],
-        },
-        include: [
-          { model: User, as: "user" },
-          { model: AdImage, as: "ad_images" },
-          { model: AdPriceDetails, as: "ad_price_details" },
-          {
-            model: AdLocation,
-            as: "ad_location",
-          },
-        ],
-        order: [
-          [sequelize.literal("ad_wish_lists_count"), "DESC"],
-          [sequelize.literal("ad_views_count"), "DESC"],
-        ],
-        distinct: true,
-        limit: perPage,
-        offset: offset,
-      };
-      if (user_id) {
-        adsQuery.where.user_id = { [Op.ne]: user_id };
-      }
-    }
     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
-    const totalPages = Math.ceil(count / perPage);
-    const fullUrl = `${req.protocol}://${req.get("host")}${
-      req.originalUrl.split("?")[0]
-    }`;
-    const buildUrl = (pageNum) => `${fullUrl}?page=${pageNum}`;
-    // const response = {
-    //   current_page: page,
-    //   data: await Promise.all(
-    //     ads.map(async (ad) => {
-    //       return {
-    //         id: ad.dataValues.ad_id,
-    //         ad_id: ad.dataValues.ad_id,
-    //         user_id: ad.dataValues.user_id,
-    //         title: ad.dataValues.title,
-    //         category: ad.dataValues.category,
-    //         description: ad.dataValues.description,
-    //         ad_type: ad.dataValues.ad_type,
-    //         ad_status: ad.dataValues.ad_status,
-    //         ad_stage: ad.dataValues.ad_stage,
-    //         ad_wish_lists_count: ad.dataValues.ad_wish_lists_count,
-    //         ad_views_count: ad.dataValues.ad_views_count,
-    //         distance: ad.dataValues.distance,
-    //         createdAt: ad.dataValues.createdAt.toISOString(),
-    //         updatedAt: ad.dataValues.updatedAt.toISOString(),
-    //         ad_price_details: ad.dataValues.ad_price_details.map(
-    //           (priceDetail) => ({
-    //             id: priceDetail.dataValues.id,
-    //             ad_id: priceDetail.dataValues.ad_id,
-    //             rent_duration: priceDetail.dataValues.rent_duration,
-    //             rent_price: priceDetail.dataValues.rent_price,
-    //             createdAt: priceDetail.dataValues.createdAt.toISOString(),
-    //             updatedAt: priceDetail.dataValues.updatedAt.toISOString(),
-    //           })
-    //         ),
-    //         ad_images: await Promise.all(
-    //           ad.dataValues.ad_images.map(async (image) => {
-    //             return {
-    //               id: image.dataValues.id,
-    //               ad_id: image.dataValues.ad_id,
-    //               image: image.dataValues.image,
-    //               createdAt: image.dataValues.createdAt.toISOString(),
-    //               updatedAt: image.dataValues.updatedAt.toISOString(),
-    //             };
-    //           })
-    //         ),
-    //         ad_location: {
-    //           id: ad.dataValues.ad_location.id,
-    //           ad_id: ad.dataValues.ad_location.ad_id,
-    //           locality: ad.dataValues.ad_location.locality ?? "",
-    //           place: ad.dataValues.ad_location.place ?? "",
-    //           district: ad.dataValues.ad_location.district ?? "",
-    //           state: ad.dataValues.ad_location.state ?? "",
-    //           country: ad.dataValues.ad_location.country ?? "",
-    //           longitude: `${ad.dataValues.ad_location.longitude}`,
-    //           latitude: `${ad.dataValues.ad_location.latitude}`,
-    //           createdAt: ad.dataValues.ad_location.createdAt.toISOString(),
-    //           updatedAt: ad.dataValues.ad_location.updatedAt.toISOString(),
-    //         },
-    //       };
-    //     })
-    //   ),
-    //   first_page_url: buildUrl(1),
-    //   from: offset + 1,
-    //   last_page: totalPages,
-    //   last_page_url: buildUrl(totalPages),
-    //   links: (links = [
-    //     {
-    //       url: page > 1 ? buildUrl(page - 1) : null,
-    //       label: "&laquo; Previous",
-    //       active: page > 1,
-    //     },
-    //     {
-    //       url: buildUrl(page),
-    //       label: `${page}`,
-    //       active: true,
-    //     },
-    //     {
-    //       url: page < totalPages ? buildUrl(page + 1) : null,
-    //       label: "Next &raquo;",
-    //       active: page < totalPages,
-    //     },
-    //   ]),
-    //   next_page_url: page < totalPages ? buildUrl(page + 1) : null,
-    //   path: fullUrl,
-    //   per_page: perPage,
-    //   prev_page_url: page > 1 ? buildUrl(page - 1) : null,
-    //   to: Math.min(offset + perPage, count),
-    //   total: count,
-    // };
-    const formattedAds = await Promise.all(
-      ads.map((ad) => formatAd(ad, { userId: user_id }))
-    );
-    response = {
-      pagination: formatPagination({
-        page: Number(page),
-        perPage,
-        total: count,
-        path: fullUrl,
-      }),
+
+    // 4. FORMAT RESPONSE
+    const formattedAds = ads.map((ad) => formatAd(ad, { userId }));
+
+    return res.success(responseMessages.bestServiceProviders, {
+      pagination: formatPagination({ page, perPage, total: count }),
       data: formattedAds,
-    };
-    return res.success(responseMessages.bestServiceProviders, response);
+    });
   } catch (error) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
+
 
 exports.adCategoriesFor = async (req, res, next) => {
   try {

@@ -100,6 +100,8 @@ module.exports.responseMessages = {
   wishlistAdded: "Ad has been added to wishlist successfully",
   adStatusChange: "Ad status has been updated successfully",
   locationSuccess: 'Location updated successfully',
+invalidCoordinates: 'Invalid coordinates',
+
   //chat
   fileUploadFailed: "File Uplaod Failed",
   chatAdded: "Chat message added successfully",
