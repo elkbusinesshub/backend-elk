@@ -7,6 +7,7 @@ const {
 } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { Op, literal } = require('sequelize');
+const sharp = require('sharp');
 
 require("dotenv").config();
 
@@ -73,20 +74,48 @@ const s3 = new S3Client({
   },
 });
 
+
 async function uploadToS3(file, fileName) {
   try {
+    let fileBuffer = file.buffer;
+    let contentType = file.mimetype;
+    const isImage = file.mimetype.startsWith('image/');
+
+    if (isImage) {
+      const sharpInstance = sharp(file.buffer).resize(800, 600, {
+        fit: 'inside',
+        withoutEnlargement: true,
+      });
+
+      if (file.mimetype === 'image/jpeg') {
+        fileBuffer = await sharpInstance
+          .jpeg({ quality: 75, progressive: false, mozjpeg: true })
+          .toBuffer();
+      } else if (file.mimetype === 'image/png') {
+        fileBuffer = await sharpInstance
+          .png({ compressionLevel: 8, progressive: false })
+          .toBuffer();
+      } else {
+        // Fallback for other image types — just pass through
+        fileBuffer = await sharpInstance.toBuffer();
+      }
+    }
+
     const command = new PutObjectCommand({
       Bucket: process.env.BUCKET_NAME,
       Key: fileName,
-      Body: file.buffer,
-      ContentType: file.mimetype,
+      Body: fileBuffer,
+      ContentType: contentType,
     });
+
     await s3.send(command);
-    return true;
+    return { success: true, finalFilename: fileName };
   } catch (error) {
-    return false;
+    console.error('S3 upload error:', error);
+    return { success: false, finalFilename: null };
   }
 }
+
 function getImageUrlPublic(imageKey) {
   const url = `https://${process.env.BUCKET_NAME}.s3.${process.env.BUCKET_REGION}.amazonaws.com/${imageKey}`;
   return url;

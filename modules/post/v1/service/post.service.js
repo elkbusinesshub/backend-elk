@@ -89,7 +89,7 @@ function buildAdsQuery({
   userSearches,
   userLat,
   userLng,
-  perPage,
+  limit,
   offset,
 }) {
   const query = {
@@ -133,9 +133,9 @@ function buildAdsQuery({
       },
     ],
     distinct: true,
-    limit: perPage,
+    limit: limit,
     offset: offset,
-    subQuery: false, // Important for performance with includes
+    // subQuery: false, // Important for performance with includes
   };
 
   // Exclude user's own ads and blocked users
@@ -213,7 +213,7 @@ function buildServiceProvidersQuery({
   location,
   location_type,
   hasLocation,
-  perPage,
+  limit,
   offset,
 }) {
   const userWhere = userId
@@ -276,7 +276,7 @@ function buildServiceProvidersQuery({
         [literal("distance"), "ASC"],
       ],
       distinct: true,
-      limit: perPage,
+      limit,
       offset,
     };
   }
@@ -295,7 +295,7 @@ function buildServiceProvidersQuery({
       [literal("ad_views_count"), "DESC"],
     ],
     distinct: true,
-    limit: perPage,
+    limit,
     offset,
   };
 }

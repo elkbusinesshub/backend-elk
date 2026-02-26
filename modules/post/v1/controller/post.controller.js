@@ -24,9 +24,14 @@ const {
   deleteImageFromS3,
   uploadToS3,
   formatAd,
-  formatPagination
+  formatPagination,
 } = require("../../../../helpers/utils");
-const {fetchBlockedUserIds, fetchUserSearches, buildAdsQuery, buildServiceProvidersQuery} = require("../service/post.service");
+const {
+  fetchBlockedUserIds,
+  fetchUserSearches,
+  buildAdsQuery,
+  buildServiceProvidersQuery,
+} = require("../service/post.service");
 
 require("dotenv").config();
 
@@ -81,7 +86,7 @@ exports.createAd = async (req, res, next) => {
         return res.error(
           responseMessages.adNotFound,
           null,
-          responseStatusCodes.notFound
+          responseStatusCodes.notFound,
         );
       }
       await AdPriceDetails.destroy({ where: { ad_id: ad.ad_id } });
@@ -122,21 +127,15 @@ function logoBufferHeightRatio(_buf) {
 exports.updateAdImage = async (req, res, next) => {
   const { ad_id, ad_stage, ad_status } = req.query;
   const images = req.files;
-
-  //   if (!ad_id) {
-  //     return res
-  //       .status(responseStatusCodes.badRequest)
-  //       .json({ success: false, message: responseMessages.invalidRequest });
-  //   }
   try {
     const adImages = [];
     if (images && images.length > 0) {
       for (const image of images) {
         const fileName = `${ad_id}_${image.originalname}`;
-        await uploadToS3(image, fileName);
+        const {success, finalFilename} = await uploadToS3(image, fileName);
         adImages.push({
           ad_id: ad_id,
-          image: fileName,
+          image: finalFilename,
         });
       }
       const ad = await Ad.findOne({ where: { ad_id: ad_id } });
@@ -147,7 +146,7 @@ exports.updateAdImage = async (req, res, next) => {
         return res.error(
           responseMessages.adNotFound,
           null,
-          responseStatusCodes.notFound
+          responseStatusCodes.notFound,
         );
       }
       ad.ad_status = ad_status || "offline";
@@ -156,17 +155,14 @@ exports.updateAdImage = async (req, res, next) => {
       await AdImage.bulkCreate(adImages);
     } else {
       const logoPath = path.join(__dirname, "../../../../assets/logo2.png");
-      
+
       const generatedFile = `${ad_id}_auto.png`;
       const ad = await Ad.findOne({ where: { ad_id: ad_id } });
       if (!ad) {
-        // return res
-        //   .status(responseStatusCodes.notFound)
-        //   .json({ success: false, message: responseMessages.adNotFound });
         return res.error(
           responseMessages.adNotFound,
           null,
-          responseStatusCodes.notFound
+          responseStatusCodes.notFound,
         );
       }
 
@@ -186,7 +182,7 @@ exports.updateAdImage = async (req, res, next) => {
 
                 <!-- title roughly at 45% height -->
                 <text x="50%" y="45%" class="title">${escapeXml(
-                  nameText
+                  nameText,
                 )}</text>
                 </svg>
             `;
@@ -220,10 +216,10 @@ exports.updateAdImage = async (req, res, next) => {
       const buffer = await base
         .composite([{ input: Buffer.from(logoSvg), top: 0, left: 0 }])
         .jpeg({ quality: 92 });
-      await uploadToS3(buffer, generatedFile);
+      const {success, finalFilename} = await uploadToS3(buffer, generatedFile);
       adImages.push({
         ad_id: ad_id,
-        image: generatedFile,
+        image: finalFilename,
       });
       ad.ad_status = ad_status || "offline";
       ad.ad_stage = ad_stage || 2;
@@ -266,7 +262,7 @@ exports.deletAdImage = async (req, res, next) => {
       return res.error(
         responseMessages.imageNotFound,
         null,
-        responseStatusCodes.notFound
+        responseStatusCodes.notFound,
       );
     }
     await deleteImageFromS3(data.image);
@@ -303,7 +299,7 @@ exports.updateAdAddress = async (req, res, next) => {
     return res.error(
       responseMessages.invalidRequest,
       null,
-      responseStatusCodes.badRequest
+      responseStatusCodes.badRequest,
     );
   }
   try {
@@ -341,7 +337,7 @@ exports.updateAdAddress = async (req, res, next) => {
       return res.error(
         responseMessages.adNotFound,
         null,
-        responseStatusCodes.notFound
+        responseStatusCodes.notFound,
       );
     }
     const usersToNotify = await User.findAll();
@@ -409,7 +405,7 @@ exports.deleteAd = async (req, res, next) => {
       return res.error(
         responseMessages.adNotFound,
         null,
-        responseStatusCodes.notFound
+        responseStatusCodes.notFound,
       );
     }
     await AdImage.destroy({ where: { ad_id: adId } });
@@ -461,7 +457,7 @@ exports.getAdDetails = async (req, res, next) => {
       return res.error(
         responseMessages.adNotFound,
         null,
-        responseStatusCodes.notFound
+        responseStatusCodes.notFound,
       );
     }
     if (userId) {
@@ -488,13 +484,13 @@ exports.myAds = async (req, res, next) => {
         include: [
           [
             literal(
-              `(SELECT COUNT(*) FROM ad_wish_lists WHERE ad_wish_lists.ad_id = Ad.ad_id)`
+              `(SELECT COUNT(*) FROM ad_wish_lists WHERE ad_wish_lists.ad_id = Ad.ad_id)`,
             ),
             "ad_wish_lists_count",
           ],
           [
             literal(
-              `(SELECT COUNT(*) FROM ad_views WHERE ad_views.ad_id = Ad.ad_id)`
+              `(SELECT COUNT(*) FROM ad_views WHERE ad_views.ad_id = Ad.ad_id)`,
             ),
             "ad_views_count",
           ],
@@ -509,7 +505,7 @@ exports.myAds = async (req, res, next) => {
       nest: true,
     });
     const formattedAds = await Promise.all(
-      ads.map((ad) => formatAd(ad, { includeCounts: true }))
+      ads.map((ad) => formatAd(ad, { includeCounts: true })),
     );
     // res.status(responseStatusCodes.success).json(formattedAds);
     return res.success(responseMessages.myadsFetched, formattedAds);
@@ -565,7 +561,7 @@ exports.getRecentUnsavedPost = async (req, res, next) => {
       return res.success(
         responseMessages.adNotFound,
         [],
-        responseStatusCodes.success
+        responseStatusCodes.success,
       );
     }
     const formattedAd = await formatAd(ad, { includeUser: false });
@@ -594,7 +590,7 @@ exports.searchCategories = async (req, res, next) => {
       },
     });
     const result = datas.filter((data) =>
-      data.keyword.toLowerCase().startsWith(keyword.toLowerCase())
+      data.keyword.toLowerCase().startsWith(keyword.toLowerCase()),
     );
     // res.status(responseStatusCodes.success).json(result);
     return res.success(responseMessages.searchCategories, result);
@@ -697,9 +693,9 @@ exports.searchCategories = async (req, res, next) => {
 //           include: [
 //             [
 //               literal(`(
-//                                 SELECT (6371 * 
-//                                     acos(cos(radians(${userSearches[0].latitude})) * cos(radians(ad_location.latitude)) * 
-//                                     cos(radians(ad_location.longitude) - radians(${userSearches[0].longitude})) + 
+//                                 SELECT (6371 *
+//                                     acos(cos(radians(${userSearches[0].latitude})) * cos(radians(ad_location.latitude)) *
+//                                     cos(radians(ad_location.longitude) - radians(${userSearches[0].longitude})) +
 //                                     sin(radians(${userSearches[0].latitude})) * sin(radians(ad_location.latitude)))
 //                                 ) AS distance
 //                             )`),
@@ -725,9 +721,9 @@ exports.searchCategories = async (req, res, next) => {
 //           include: [
 //             [
 //               literal(`(
-//                                 SELECT (6371 * 
-//                                     acos(cos(radians(${req.body.latitude})) * cos(radians(ad_location.latitude)) * 
-//                                     cos(radians(ad_location.longitude) - radians(${req.body.longitude})) + 
+//                                 SELECT (6371 *
+//                                     acos(cos(radians(${req.body.latitude})) * cos(radians(ad_location.latitude)) *
+//                                     cos(radians(ad_location.longitude) - radians(${req.body.longitude})) +
 //                                     sin(radians(${req.body.latitude})) * sin(radians(ad_location.latitude)))
 //                                 ) AS distance
 //                             )`),
@@ -768,18 +764,23 @@ exports.searchCategories = async (req, res, next) => {
 
 exports.recommentedPosts = async (req, res, next) => {
   try {
-    // 1. INPUT VALIDATION & SANITIZATION
-    const page = Math.max(1, parseInt(req.body.page) || 1);
-    const perPage = 16;
-    const offset = (page - 1) * perPage;
+
+    // const page = Math.max(1, parseInt(req.body.page) || 1);
+    // const perPage = 16;
+    // const offset = (page - 1) * perPage;
     const userId = req.body.id;
-    
+
+    const limit = parseInt(req.body.limit) || 10;
+    const offset = Math.max(parseInt(req.body.offset) || 0, 0);
+
     // Validate and sanitize coordinates to prevent SQL injection
     const userLat = req.body.latitude ? parseFloat(req.body.latitude) : null;
     const userLng = req.body.longitude ? parseFloat(req.body.longitude) : null;
-    
-    if ((userLat && (isNaN(userLat) || userLat < -90 || userLat > 90)) ||
-        (userLng && (isNaN(userLng) || userLng < -180 || userLng > 180))) {
+
+    if (
+      (userLat && (isNaN(userLat) || userLat < -90 || userLat > 90)) ||
+      (userLng && (isNaN(userLng) || userLng < -180 || userLng > 180))
+    ) {
       // return res.status(400).json({ message: 'Invalid coordinates' });
       return res.error(responseMessages.invalidCoordinates);
     }
@@ -787,7 +788,7 @@ exports.recommentedPosts = async (req, res, next) => {
     // 2. PARALLEL DATA FETCHING - Fetch blocked users and searches simultaneously
     const [userSearches, blockedUserIds] = await Promise.all([
       userId ? fetchUserSearches(userId) : Promise.resolve([]),
-      userId ? fetchBlockedUserIds(userId) : Promise.resolve([])
+      userId ? fetchBlockedUserIds(userId) : Promise.resolve([]),
     ]);
 
     // 3. BUILD OPTIMIZED QUERY
@@ -797,27 +798,27 @@ exports.recommentedPosts = async (req, res, next) => {
       userSearches,
       userLat,
       userLng,
-      perPage,
-      offset
+      limit,
+      offset,
     });
 
     // 4. EXECUTE QUERY
     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
 
     // 5. FORMAT RESPONSE
-    const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl.split("?")[0]}`;
-    const pagination = formatPagination({
-      page,
-      perPage,
-      total: count,
-      path: fullUrl,
-    });
+    // const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl.split("?")[0]}`;
+    // const pagination = formatPagination({
+    //   page,
+    //   perPage,
+    //   total: count,
+    //   path: fullUrl,
+    // });
 
     // 6. FORMAT ADS (no async operations inside formatAd now)
     const formattedAds = ads.map((ad) => formatAd(ad));
 
     return res.success(responseMessages.recommentedPosts, {
-      pagination,
+      totalCount: count,
       data: formattedAds,
     });
   } catch (error) {
@@ -929,11 +930,6 @@ exports.rentCategoryPosts = async (req, res, next) => {
       min_price,
       max_price,
     } = req.body;
-    // if (!ad_type) {
-    //   return res
-    //     .status(responseStatusCodes.badRequest)
-    //     .json({ message: responseMessages.invalidRequest });
-    // }
     const perPage = 15;
     const offset = (page - 1) * perPage;
     if (user_id) {
@@ -958,7 +954,7 @@ exports.rentCategoryPosts = async (req, res, next) => {
       });
 
       blockedUserIds = blockedRecords.map((record) =>
-        record.blocker_id !== user_id ? record.blocked_id : record.blocker_id
+        record.blocker_id !== user_id ? record.blocked_id : record.blocker_id,
       );
     }
     let response;
@@ -1107,7 +1103,7 @@ exports.rentCategoryPosts = async (req, res, next) => {
       });
     }
     const formattedAds = await Promise.all(
-      ads.map((ad) => formatAd(ad, { userId: user_id, wishListAdIds }))
+      ads.map((ad) => formatAd(ad, { userId: user_id, wishListAdIds })),
     );
     const fullUrl = `${req.protocol}://${req.get("host")}${
       req.originalUrl.split("?")[0]
@@ -1131,7 +1127,178 @@ exports.rentCategoryPosts = async (req, res, next) => {
   }
 };
 
-// exports.bestServiceProviders = async (req, res, next) => {  
+exports.rentCategoryPosts = async (req, res, next) => {
+  try {
+    const {
+      ad_type,
+      location_type,
+      location,
+      latitude,
+      longitude,
+      category,
+      keyword,
+      user_id,
+      min_price,
+      max_price,
+    } = req.body;
+
+    // ── Pagination ──────────────────────────────────────────
+    const limit = Math.max(1, parseInt(req.body.limit) || 15);
+    const offset = Math.max(0, parseInt(req.body.offset) || 0);
+
+    // ── Validate coordinates ────────────────────────────────
+    const userLat = latitude ? parseFloat(latitude) : null;
+    const userLng = longitude ? parseFloat(longitude) : null;
+
+    if (
+      (userLat && (isNaN(userLat) || userLat < -90 || userLat > 90)) ||
+      (userLng && (isNaN(userLng) || userLng < -180 || userLng > 180))
+    ) {
+      return res.error(responseMessages.invalidCoordinates);
+    }
+
+    // ── Parallel: user searches + blocked users ─────────────
+    const [blockedUserIds, wishListAdIds] = await Promise.all([
+      user_id
+        ? BlockedUser.findAll({
+            where: { [Op.or]: [{ blocker_id: user_id }, { blocked_id: user_id }] },
+            raw: true,
+          }).then((records) =>
+            records.map((r) => (r.blocker_id !== user_id ? r.blocked_id : r.blocker_id))
+          )
+        : Promise.resolve([]),
+
+      user_id
+        ? AdWishLists.findAll({ where: { user_id }, attributes: ["ad_id"] }).then((wl) =>
+            wl.map((w) => w.ad_id)
+          )
+        : Promise.resolve([]),
+
+      // Fire-and-forget user search log
+      user_id
+        ? UserSearch.create({
+            user_id,
+            keyword: keyword || "",
+            category: category || "",
+            ad_type,
+            location_type: location_type || "",
+            location: location || "",
+            latitude: userLat || null,
+            longitude: userLng || null,
+          }).catch(() => {}) // don't block response if this fails
+        : Promise.resolve(),
+    ]);
+
+    // ── Base where clause ───────────────────────────────────
+    const baseWhere = {
+      ad_type,
+      ad_status: "online",
+      ad_stage: 3,
+      ...(blockedUserIds.length
+        ? { user_id: { [Op.notIn]: blockedUserIds } }
+        : {}),
+    };
+
+    if (category) baseWhere.category = category;
+
+    if (keyword) {
+      baseWhere[Op.or] = [
+        { category: { [Op.like]: `%${keyword}%` } },
+        { title: { [Op.like]: `%${keyword}%` } },
+        { description: { [Op.like]: `%${keyword}%` } },
+      ];
+    }
+
+    // ── Base includes ───────────────────────────────────────
+    const baseIncludes = [
+      { model: User, as: "user" },
+      { model: AdImage, as: "ad_images" },
+      { model: AdPriceDetails, as: "ad_price_details" },
+    ];
+
+    // ── Handle keyword = ad_id shortcut ────────────────────
+    if (keyword && !isNaN(Number(keyword))) {
+      const adExists = await Ad.findOne({ where: { ad_id: Number(keyword) }, attributes: ["ad_id"] });
+      if (adExists) {
+        const { count, rows: ads } = await Ad.findAndCountAll({
+          where: { ad_id: Number(keyword), ad_stage: 3 },
+          include: [...baseIncludes, { model: AdLocation, as: "ad_location" }],
+          distinct: true,
+          limit,
+          offset,
+        });
+
+        const formattedAds = ads.map((ad) => formatAd(ad, { userId: user_id, wishListAdIds }));
+        return res.success(responseMessages.rentCategoryPosts, {
+          totalCount: count,
+          data: formattedAds,
+        });
+      }
+    }
+
+    // ── Build query based on location availability ──────────
+    let adsQuery;
+
+    const hasLocation = location_type && location && userLat && userLng;
+
+    if (!hasLocation) {
+      // No location — simple query
+      adsQuery = {
+        where: baseWhere,
+        include: [...baseIncludes, { model: AdLocation, as: "ad_location" }],
+        distinct: true,
+        limit,
+        offset,
+      };
+    } else {
+      // With location — distance-based query
+      const locationWhere =
+        location_type === "locality" || location_type === "place"
+          ? { [Op.or]: [{ locality: location }, { place: location }] }
+          : { [Op.or]: [{ state: location }, { country: location }] };
+
+      adsQuery = {
+        where: baseWhere,
+        attributes: {
+          include: [
+            [
+              literal(`(
+                SELECT (6371 *
+                  acos(cos(radians(${userLat})) * cos(radians(ad_location.latitude)) *
+                  cos(radians(ad_location.longitude) - radians(${userLng})) +
+                  sin(radians(${userLat})) * sin(radians(ad_location.latitude)))
+                )
+              `),
+              "distance",
+            ],
+          ],
+        },
+        include: [
+          ...baseIncludes,
+          { model: AdLocation, as: "ad_location", where: locationWhere },
+        ],
+        order: [[sequelize.literal("distance"), "ASC"]],
+        distinct: true,
+        limit,
+        offset,
+      };
+    }
+
+    // ── Execute ─────────────────────────────────────────────
+    const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
+
+    const formattedAds = ads.map((ad) => formatAd(ad, { userId: user_id, wishListAdIds }));
+
+    return res.success(responseMessages.rentCategoryPosts, {
+      totalCount: count,
+      data: formattedAds,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// exports.bestServiceProviders = async (req, res, next) => {
 //   try {
 //     const perPage = 10;
 //     const {
@@ -1185,9 +1352,9 @@ exports.rentCategoryPosts = async (req, res, next) => {
 //             ],
 //             [
 //               literal(`(
-//                                 SELECT (6371 * 
-//                                     acos(cos(radians(${latitude})) * cos(radians(ad_location.latitude)) * 
-//                                     cos(radians(ad_location.longitude) - radians(${longitude})) + 
+//                                 SELECT (6371 *
+//                                     acos(cos(radians(${latitude})) * cos(radians(ad_location.latitude)) *
+//                                     cos(radians(ad_location.longitude) - radians(${longitude})) +
 //                                     sin(radians(${latitude})) * sin(radians(ad_location.latitude)))
 //                                 ) AS distance
 //                             )`),
@@ -1303,17 +1470,16 @@ exports.rentCategoryPosts = async (req, res, next) => {
 exports.bestServiceProviders = async (req, res, next) => {
   try {
     // 1. INPUT VALIDATION & SANITIZATION
-    const page    = Math.max(1, parseInt(req.body.page) || 1);
-    const perPage = 10;
-    const offset  = (page - 1) * perPage;
+    const limit = parseInt(req.body.limit) || 10;
+    const offset = Math.max(parseInt(req.body.offset) || 0, 0);
 
     const { location_type, location, user_id: userId } = req.body;
 
-    const userLat = req.body.latitude  ? parseFloat(req.body.latitude)  : null;
+    const userLat = req.body.latitude ? parseFloat(req.body.latitude) : null;
     const userLng = req.body.longitude ? parseFloat(req.body.longitude) : null;
 
     if (
-      (userLat && (isNaN(userLat) || userLat < -90  || userLat > 90))  ||
+      (userLat && (isNaN(userLat) || userLat < -90 || userLat > 90)) ||
       (userLng && (isNaN(userLng) || userLng < -180 || userLng > 180))
     ) {
       return res.error(responseMessages.invalidCoordinates);
@@ -1336,7 +1502,7 @@ exports.bestServiceProviders = async (req, res, next) => {
       location,
       location_type,
       hasLocation,
-      perPage,
+      limit,
       offset,
     });
 
@@ -1346,14 +1512,13 @@ exports.bestServiceProviders = async (req, res, next) => {
     const formattedAds = ads.map((ad) => formatAd(ad, { userId }));
 
     return res.success(responseMessages.bestServiceProviders, {
-      pagination: formatPagination({ page, perPage, total: count }),
+     totalCount: count,
       data: formattedAds,
     });
   } catch (error) {
     return next(error);
   }
 };
-
 
 exports.adCategoriesFor = async (req, res, next) => {
   try {
@@ -1423,7 +1588,7 @@ exports.changeOnlineStatus = async (req, res, next) => {
       return res.error(
         responseMessages.adNotFound,
         null,
-        responseStatusCodes.notFound
+        responseStatusCodes.notFound,
       );
     }
     ad.ad_status = ad.ad_status === "online" ? "offline" : "online";

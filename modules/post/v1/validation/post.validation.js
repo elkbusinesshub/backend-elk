@@ -104,8 +104,9 @@ module.exports = {
       const schema = joi.object({
         latitude: joi.number().optional(),
         longitude: joi.number().optional(),
-        page: joi.number().integer().min(1).required(),
-        id: joi.number().integer().optional(),
+        limit: joi.number().integer().min(1).optional(),
+       id: joi.number().integer().optional(),
+        offset: joi.number().integer().min(0).optional(),
       });
 
       await schema.validateAsync(req.body);
@@ -127,7 +128,8 @@ module.exports = {
         longitude: joi.number().optional(),
         category: joi.string().allow('').empty('').default(null).optional(),
         keyword: joi.string().allow('').empty('').default(null).optional(),
-        page: joi.number().integer().min(1).default(1).optional(),
+        limit: joi.number().integer().min(1).default(1).optional(),
+        offset: joi.number().integer().min(0).default(0).optional(),
         user_id: joi.string().optional(),
         min_price: joi.number().optional(),
         max_price: joi.number().optional(),
@@ -166,7 +168,8 @@ module.exports = {
           location: joi.string().optional(),
           latitude: joi.number().optional(),
           longitude: joi.number().optional(),
-          page: joi.number().integer().min(1).default(1),
+          limit: joi.number().integer().min(1).default(1),
+          offset: joi.number().integer().min(0),
           user_id: joi.number().optional(),
         })
         .custom((value, helpers) => {
