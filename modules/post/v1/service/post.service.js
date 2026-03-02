@@ -7,6 +7,7 @@ const AdImage = require("../../../../models/adImage.model");
 const AdLocation = require("../../../../models/adLocation.model");
 const AdPriceDetails = require("../../../../models/adPriceDetails.model");
 const { getDistanceCalculation, buildLocationWhere } = require("../../../../helpers/utils");
+const AdView = require('../../../../models/adView.model');
 
 //Determine location filtering and distance calculation configuration
 function getLocationConfig(userSearches, userLat, userLng) {
@@ -300,9 +301,31 @@ function buildServiceProvidersQuery({
   };
 }
 
+const insertAdViewCount = async (userId, adId) => {
+  try {
+    let adView = await AdView.findOne({
+      where: { user_id: userId, ad_id: adId },
+    });
+    if (!adView) {
+      await AdView.create({
+        user_id: userId,
+        ad_id: adId,
+        view_count: 1,
+      });
+    } else {
+      adView.view_count += 1;
+      await adView.save();
+    }
+    return "successfully updated";
+  } catch (error) {
+    throw new Error("Error updating ad view count");
+  }
+};
+
 module.exports = {
   fetchUserSearches,
   fetchBlockedUserIds,
   buildServiceProvidersQuery,
   buildAdsQuery,
+  insertAdViewCount
 };

@@ -22,6 +22,7 @@ const {
 const ReferralCode = require("../../../../models/referralCode.model");
 const ReferralCodeLogin = require("../../../../models/referralCodeLogin.model");
 
+//done
 exports.priceCategories = async (req, res, next) => {
   try {
     const priceCategories = await PriceCategory.findAll();
@@ -38,6 +39,8 @@ exports.priceCategories = async (req, res, next) => {
     // res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
   }
 };
+
+//done
 exports.addPriceCategories = async (req, res, next) => {
   try {
     const {category, title} = req.body;
@@ -57,6 +60,8 @@ exports.addPriceCategories = async (req, res, next) => {
     // return res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
   }
 };
+
+//done
 exports.deletePriceCategories = async (req,res)=>{
   try{
     const {category, title}=req.body;
@@ -74,33 +79,42 @@ exports.deletePriceCategories = async (req,res)=>{
   }
 }
 
-exports.clearDatabase = async (req, res, next)=>{
-  try{
-    await AdLocation.drop();
-    await AdImage.drop();
-    await AdPriceDetails.drop();
-    await AdWishLists.drop();
-    await AdCategory.drop();
-    await AdViews.drop();
-    await Ad.drop();
-    await ContactView.drop();
-    await Otp.drop();
-    await Place.drop();
-    await SearchCategory.drop();
-    await UserSearch.drop();
-    await ChatMessage.drop();
-    await ChatRoom.drop();
-    await ChatMessage.drop();
-    await ChatRoom.drop();
-    await User.drop();
-    // await sequelize.drop();
-    // return res.status(responseStatusCodes.success).json({ message: responseMessages.databaseCleared });
-    return res.success(responseMessages.databaseCleared);
-  }catch(e){
-    // return res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
-    return next(e)
-  }
-}
+//done
+exports.clearDatabase = async (req, res, next) => {
+    try {
+        // Drop child tables in parallel first
+        await Promise.all([
+            AdLocation.drop({ cascade: true }),
+            AdImage.drop({ cascade: true }),
+            AdPriceDetails.drop({ cascade: true }),
+            AdWishLists.drop({ cascade: true }),
+            AdViews.drop({ cascade: true }),
+            ContactView.drop({ cascade: true }),
+            Otp.drop({ cascade: true }),
+            Place.drop({ cascade: true }),
+            SearchCategory.drop({ cascade: true }),
+            UserSearch.drop({ cascade: true }),
+            ChatMessage.drop({ cascade: true }),
+        ]);
+
+        // Drop parent tables after children
+        await Promise.all([
+            AdCategory.drop({ cascade: true }),
+            Ad.drop({ cascade: true }),
+            ChatRoom.drop({ cascade: true }),
+        ]);
+
+        // Drop root table last
+        await User.drop({ cascade: true });
+
+        return res.success(responseMessages.databaseCleared);
+
+    } catch (error) {
+        return next(error);
+    }
+};
+
+
 exports.getBlockedUsers = async (req, res, next) => {
   try {
     const blockedUsers = await BlockedUser.findAll();

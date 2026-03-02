@@ -9,151 +9,92 @@ const {
   responseStatusCodes,
   responseMessages,
 } = require("../../../../helpers/appConstants");
-const { getImageUrlPublic, uploadToS3 } = require("../../../../helpers/utils");
+const { getImageUrlPublic, uploadToS3, generateRoomId } = require("../../../../helpers/utils");
 const ReportUser = require("../../../../models/reportUser.model");
+const { sendChatNotification } = require('../service/chat.service');
 
-const admin = require("../../../../helpers/firebase");
-const messaging = admin.messaging();
-function generateRoomId() {
-  const timestamp = Date.now();
-  const randomNum = Math.floor(Math.random() * 1000);
-  const userId = `${timestamp}${randomNum}`;
-  return parseInt(userId);
-}
+//done
+const addChat = async (req, res, next) => {
+    try {
+        const { authUserId, userId, message, type, file_name, ad_id, ad_name, status } = req.body;
+        const file = req.file;
 
-exports.addChat = async (req, res, next) => {
-  const {
-    authUserId,
-    userId,
-    message,
-    type,
-    file_name,
-    ad_id,
-    ad_name,
-    status,
-  } = req.body;
-  const file = req.file;
-  // if ( !authUserId || !userId || !message || !type|| !status ) {
-  //     return res.status(responseStatusCodes.badRequest).json({ message: responseMessages.invalidRequest });
-  // }
-  try {
-    const isBlocked = await BlockedUser.findOne({
-      where: { blocker_id: userId, blocked_id: authUserId },
-    });
-    const isYouBlocked = await BlockedUser.findOne({
-      where: { blocker_id: authUserId, blocked_id: userId },
-    });
-    let chatRoom = await ChatRoom.findOne({
-      where: {
-        [Op.or]: [
-          { user1: authUserId, user2: userId },
-          { user1: userId, user2: authUserId },
-        ],
-      },
-    });
-    const lastMessageTime = Date.now();
-    if (!chatRoom) {
-      chatRoom = await ChatRoom.create({
-        room_id: generateRoomId(),
-        user1: authUserId,
-        user2: userId,
-        last_message_time: lastMessageTime,
-      });
-    } else {
-      chatRoom.last_message_time = lastMessageTime;
-      await chatRoom.save();
-    }
-    if (file) {
-      await uploadToS3(file, file_name);
-    }
-    var chatMessage;
-    if (type === "text" || type === "system") {
-      chatMessage = await ChatMessage.create({
-        room_id: chatRoom.room_id,
-        sender_id: authUserId,
-        reciever_id: userId,
-        message: message,
-        type: type,
-        status: isBlocked ? "blocked" : status,
-        file_name: "",
-        ad_id,
-        ad_name,
-        time: lastMessageTime,
-      });
-    } else if (type === "image" || type === "audio" || type === "video") {
-      if (file) {
-        chatMessage = await ChatMessage.create({
-          room_id: chatRoom.room_id,
-          sender_id: authUserId,
-          reciever_id: userId,
-          message: message,
-          type: type,
-          status: isBlocked ? "blocked" : status,
-          file_name: file_name,
-          ad_id,
-          ad_name,
-          time: lastMessageTime,
-        });
-        chatMessage.dataValues.file_url =
-          file_name !== "" ? getImageUrlPublic(file_name) : null;
-      } else {
-        // return res.status(responseStatusCodes.badRequest).json({ message: responseMessages.invalidRequest });
-        return res.error(responseMessages.invalidRequest);
-      }
-    }
-    const receiver = await User.findOne({ where: { user_id: userId } });
+        const isMediaType = ['image', 'audio', 'video'].includes(type);
 
-    if (!isBlocked && type !== "system") {
-      if (!receiver || !receiver.notification_token) {
-      } else {
-        const sender = await User.findOne({ where: { user_id: authUserId } });
-        const senderName = sender ? sender.name : "Someone";
-        const message1 = {
-          token: receiver.notification_token,
-          notification: {
-            title: `New Message from ${senderName}`,
-            body:
-              message.length > 60 ? message.substring(0, 60) + "…" : message,
-          },
-          data: {
-            type: "chat",
-            isBlockedByOther: isBlocked ? "1" : "0",
-            isYouBlock: isYouBlocked ? "1" : "0",
-            userId: userId.toString(),
-            authUserId: authUserId.toString(),
-          },
-        };
-        try {
-          const response = await admin.messaging().send(message1);
-        } catch (err) {
-          console.warn("⚠️ FCM send error:", err.code, err.message);
-          if (
-            err.code === "messaging/registration-token-not-registered" ||
-            err.code === "messaging/invalid-registration-token"
-          ) {
-            await User.update(
-              { notification_token: null },
-              { where: { user_id: userId } }
-            );
-          } else {
-            //
-          }
+        // Validate file for media messages
+        if (isMediaType && !file) {
+            return res.error(responseMessages.invalidRequest);
         }
-      }
-    } else {
+
+        // Check block status and chat room in parallel
+        const [isBlocked, isYouBlocked, existingRoom] = await Promise.all([
+            BlockedUser.findOne({ where: { blocker_id: userId, blocked_id: authUserId } }),
+            BlockedUser.findOne({ where: { blocker_id: authUserId, blocked_id: userId } }),
+            ChatRoom.findOne({
+                where: {
+                    [Op.or]: [
+                        { user1: authUserId, user2: userId },
+                        { user1: userId, user2: authUserId }
+                    ]
+                }
+            })
+        ]);
+
+        const lastMessageTime = Date.now();
+
+        // Create or update chat room
+        const chatRoom = existingRoom
+            ? await existingRoom.update({ last_message_time: lastMessageTime })
+            : await ChatRoom.create({
+                room_id: generateRoomId(),
+                user1: authUserId,
+                user2: userId,
+                last_message_time: lastMessageTime
+            });
+
+        // Upload file if present
+        if (file) await uploadToS3(file, file_name);
+
+        // Build message payload
+        const messagePayload = {
+            room_id: chatRoom.room_id,
+            sender_id: authUserId,
+            reciever_id: userId,
+            message,
+            type,
+            status: isBlocked ? 'blocked' : status,
+            file_name: isMediaType ? file_name : '',
+            ad_id,
+            ad_name,
+            time: lastMessageTime
+        };
+
+        const chatMessage = await ChatMessage.create(messagePayload);
+
+        // Attach file URL for media messages
+        if (isMediaType && file_name) {
+            chatMessage.dataValues.file_url = getImageUrlPublic(file_name);
+        }
+
+        // Send push notification
+        await sendChatNotification({ 
+            isBlocked, 
+            isYouBlocked, 
+            type, 
+            userId, 
+            authUserId, 
+            message 
+        });
+
+        return res.success(responseMessages.chatAdded, chatMessage.dataValues);
+
+    } catch (error) {
+        return next(error);
     }
-    // res.status(responseStatusCodes.success).json({
-    //   message: "Chat message added successfully",
-    //   data: chatMessage.dataValues,
-    // });
-    return res.success("Chat message added successfully", chatMessage.dataValues);
-  } catch (error) {
-    // res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
-    return next(error);
-  }
 };
 
-exports.blockAUser = async (req, res, next) => {
+//done
+const blockAUser = async (req, res, next) => {
   const { authUserId, otherUserId } = req.body;
   // if ( !authUserId && !otherUserId ) {
   //     return res.status(responseStatusCodes.badRequest).json({ message: responseMessages.invalidRequest });
@@ -184,7 +125,8 @@ exports.blockAUser = async (req, res, next) => {
   }
 };
 
-exports.reportAUser = async (req, res, next) => {
+//done
+const reportAUser = async (req, res, next) => {
   const { authUserId, otherUserId, reason } = req.body;
   if (!authUserId && !otherUserId && !reason) {
     // return res
@@ -210,7 +152,8 @@ exports.reportAUser = async (req, res, next) => {
   }
 };
 
-exports.unblockAUser = async (req, res, next) => {
+//done
+const unblockAUser = async (req, res, next) => {
   const { authUserId, otherUserId } = req.body;
   //   if (!authUserId && !otherUserId) {
   //     return res
@@ -243,7 +186,8 @@ exports.unblockAUser = async (req, res, next) => {
   }
 };
 
-exports.isUserBlocked = async (req, res, next) => {
+//done
+const isUserBlocked = async (req, res, next) => {
   const { blockerId, blockedId } = req.query;
   //   if (!blockerId || !blockedId) {
   //     return res
@@ -274,7 +218,8 @@ exports.isUserBlocked = async (req, res, next) => {
   }
 };
 
-exports.updateMessageStatus = async (authUserId, otherUserId) => {
+//fix
+const updateMessageStatus = async (authUserId, otherUserId) => {
   try {
     let chatRoom = await ChatRoom.findOne({
       where: {
@@ -307,317 +252,343 @@ exports.updateMessageStatus = async (authUserId, otherUserId) => {
   }
 };
 
-exports.getChatMessages = async (req, res, next) => {
-  const { authUserId, otherUserId } = req.query;
+//done
+const getChatMessages = async (req, res, next) => {
+    try {
+        const { authUserId, otherUserId } = req.query;
 
-  //   if (!authUserId || !otherUserId) {
-  //     return res
-  //       .status(responseStatusCodes.badRequest)
-  //       .json({ message: responseMessages.invalidRequest });
-  //   }
-  try {
-    const isBlockedByOther = await BlockedUser.findOne({
-      where: { blocker_id: otherUserId, blocked_id: authUserId },
-    });
-    const isYouBlockedOther = await BlockedUser.findOne({
-      where: { blocker_id: authUserId, blocked_id: otherUserId },
-    });
-    let chatRoom = await ChatRoom.findOne({
-      where: {
-        [Op.or]: [
-          { user1: authUserId, user2: otherUserId },
-          { user1: otherUserId, user2: authUserId },
-        ],
-      },
-    });
-    let data;
-    if (!chatRoom) {
-      data = {
-        chatMessages: [],
-        chatRoom: {},
-      };
-      //   return res
-      //     .status(responseStatusCodes.success)
-      //     .json({ message: "Chat room not found", data });
-      return res.success(responseMessages.chatRoomNotFound, data);
-    }
-
-    const chatMessages = await ChatMessage.findAll({
-      where: {
-        room_id: chatRoom.room_id,
-        [Op.or]: [
-          {
-            reciever_id: {
-              [Op.ne]: authUserId,
-            },
-          },
-          {
-            status: {
-              [Op.ne]: "blocked",
-            },
-          },
-        ],
-      },
-      order: [["time", "ASC"]],
-    });
-    const cleanMessages = chatMessages.map((message) => message.dataValues);
-    const cleanChatRoom = chatRoom.dataValues;
-    await Promise.all(
-      cleanMessages.map(async (message) => {
-        message.file_url =
-          message.file_name !== ""
-            ? getImageUrlPublic(message.file_name)
-            : null;
-      })
-    );
-    data = {
-      chatMessages: cleanMessages,
-      chatRoom: cleanChatRoom,
-      isBlockedByOther: !!isBlockedByOther,
-      isYouBlockedOther: !!isYouBlockedOther,
-    };
-    // res
-    //   .status(responseStatusCodes.success)
-    //   .json({ message: "Chat messages retrieved successfully", data });
-    return res.success(responseMessages.chatRoomFound, data);
-  } catch (error) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
-    return next(error);
-  }
-};
-
-exports.getTotalChatRoomsCount = async (req, res, next) => {
-  const { authUserId } = req.query;
-  try {
-    const count = await ChatRoom.count({
-      where: {
-        [Op.or]: [{ user1: authUserId }, { user2: authUserId }],
-      },
-      include: [
-        {
-          model: ChatMessage,
-          as: "chat_messages",
-          where: { status: "send", reciever_id: authUserId },
-        },
-      ],
-    });
-    // res
-    //   .status(responseStatusCodes.success)
-    //   .json({ message: "Chat messages retrieved successfully", count });
-    return res.success(responseMessages.chatRoomFound, count);
-  } catch (e) {
-    //     res
-    //       .status(responseStatusCodes.internalServerError)
-    //       .json({ message: "Something went wrong: " + e.message });
-    return next(e);
-  }
-};
-
-exports.getChatRooms = async (req, res, next) => {
-  const { authUserId } = req.query;
-  try {
-    const chatRooms = await ChatRoom.findAll({
-      where: {
-        [Op.or]: [{ user1: authUserId }, { user2: authUserId }],
-      },
-      attributes: {
-        include: [
-          [
-            sequelize.fn(
-              "COUNT",
-              sequelize.literal(
-                `CASE WHEN chat_messages.reciever_id = ${authUserId} and chat_messages.status = 'send' THEN 1 END`
-              )
-            ),
-            "new_message_count",
-          ],
-        ],
-      },
-      include: [
-        { model: User, as: "User1" },
-        { model: User, as: "User2" },
-        {
-          model: ChatMessage,
-          as: "chat_messages",
-          attributes: [],
-          required: false,
-        },
-      ],
-      group: ["ChatRoom.id"],
-      order: [["last_message_time", "DESC"]],
-    });
-    let data = [];
-    if (chatRooms.length > 0) {
-      data = await Promise.all(
-        chatRooms.map(async (chatRoom) => {
-          const localTime = new Date(chatRoom.last_message_time).toLocaleString(
-            "en-US",
-            {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-              hour: "numeric",
-              minute: "numeric",
-              hour12: true,
-            }
-          );
-          chatRoom.last_message_time === localTime;
-          const authUser =
-            chatRoom.User1.id === authUserId
-              ? chatRoom.User1.toJSON()
-              : chatRoom.User2.toJSON();
-          const otherUser =
-            chatRoom.User1.id === authUserId
-              ? chatRoom.User2.toJSON()
-              : chatRoom.User1.toJSON();
-          authUser.profile = authUser.profile
-            ? getImageUrlPublic(authUser.profile)
-            : null;
-          otherUser.profile = otherUser.profile
-            ? getImageUrlPublic(otherUser.profile)
-            : null;
-          const isBlockedByOther = await BlockedUser.findOne({
-            where: {
-              blocker_id: otherUser.id,
-              blocked_id: authUser.id,
-            },
-          });
-
-          const isYouBlockedOther = await BlockedUser.findOne({
-            where: {
-              blocker_id: authUser.id,
-              blocked_id: otherUser.id,
-            },
-          });
-          return {
-            ...chatRoom.toJSON(),
-            last_message_time: localTime,
-            User1: null,
-            User2: null,
-            authUser,
-            otherUser,
-            isBlockedByOther: !!isBlockedByOther, // return boolean
-            isYouBlockedOther: !!isYouBlockedOther,
-          };
-        })
-      );
-    }
-    // res
-    //   .status(responseStatusCodes.success)
-    //   .json({ message: "Chat messages retrieved successfully", data });
-    return res.success(responseMessages.chatRoomFound, data);
-  } catch (e) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: "Something went wrong: " + e.message });
-    return next(e);
-  }
-};
-
-exports.fetchChatRooms = async (authUserId) => {
-  try {
-    const chatRooms = await ChatRoom.findAll({
-      where: {
-        [Op.or]: [{ user1: authUserId }, { user2: authUserId }],
-      },
-      attributes: {
-        include: [
-          [
-            sequelize.fn(
-              "COUNT",
-              sequelize.literal(
-                `CASE WHEN chat_messages.reciever_id = ${authUserId} AND chat_messages.status = 'send' THEN 1 END`
-              )
-            ),
-            "new_message_count",
-          ],
-        ],
-      },
-      include: [
-        { model: User, as: "User1" },
-        { model: User, as: "User2" },
-        {
-          model: ChatMessage,
-          as: "chat_messages",
-          attributes: [],
-          required: false,
-        },
-      ],
-      group: ["ChatRoom.id"],
-      order: [["last_message_time", "DESC"]],
-    });
-    let data1 = [];
-    if (chatRooms.length > 0) {
-      data1 = await Promise.all(
-        chatRooms.map(async (chatRoom) => {
-          try {
-            const localTime = new Date(
-              chatRoom.last_message_time
-            ).toLocaleString("en-US", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-              hour: "numeric",
-              minute: "numeric",
-              hour12: true,
-            });
-
-            const authUser =
-              chatRoom.User1.user_id === authUserId
-                ? chatRoom.User1.toJSON()
-                : chatRoom.User2.toJSON();
-            const otherUser =
-              chatRoom.User1.user_id === authUserId
-                ? chatRoom.User2.toJSON()
-                : chatRoom.User1.toJSON();
-
-            authUser.profile = authUser.profile
-              ? getImageUrlPublic(authUser.profile)
-              : null;
-            otherUser.profile = otherUser.profile
-              ? getImageUrlPublic(otherUser.profile)
-              : null;
-
-            const [isBlockedByOther, isYouBlockedOther] = await Promise.all([
-              BlockedUser.findOne({
+        // Run block checks and chat room query in parallel
+        const [isBlockedByOther, isYouBlockedOther, chatRoom] = await Promise.all([
+            BlockedUser.findOne({ where: { blocker_id: otherUserId, blocked_id: authUserId } }),
+            BlockedUser.findOne({ where: { blocker_id: authUserId, blocked_id: otherUserId } }),
+            ChatRoom.findOne({
                 where: {
-                  blocker_id: otherUser.id,
-                  blocked_id: authUser.id,
-                },
-              }),
-              BlockedUser.findOne({
-                where: {
-                  blocker_id: authUser.id,
-                  blocked_id: otherUser.id,
-                },
-              }),
-            ]);
+                    [Op.or]: [
+                        { user1: authUserId, user2: otherUserId },
+                        { user1: otherUserId, user2: authUserId }
+                    ]
+                }
+            })
+        ]);
+
+        if (!chatRoom) {
+            return res.success(responseMessages.chatRoomNotFound, { chatMessages: [], chatRoom: {} });
+        }
+
+        const chatMessages = await ChatMessage.findAll({
+            where: {
+                room_id: chatRoom.room_id,
+                [Op.or]: [
+                    { reciever_id: { [Op.ne]: authUserId } },
+                    { status: { [Op.ne]: 'blocked' } }
+                ]
+            },
+            order: [['time', 'ASC']]
+        });
+
+        const cleanMessages = chatMessages.map(msg => ({
+            ...msg.dataValues,
+            file_url: msg.file_name ? getImageUrlPublic(msg.file_name) : null
+        }));
+
+        return res.success(responseMessages.chatRoomFound, {
+            chatMessages: cleanMessages,
+            chatRoom: chatRoom.dataValues,
+            isBlockedByOther: !!isBlockedByOther,
+            isYouBlockedOther: !!isYouBlockedOther
+        });
+
+    } catch (error) {
+        return next(error);
+    }
+};
+
+//done
+const getTotalChatRoomsCount = async (req, res, next) => {
+    try {
+        const { authUserId } = req.query;
+
+        const count = await ChatRoom.count({
+            where: {
+                [Op.or]: [{ user1: authUserId }, { user2: authUserId }]
+            },
+            include: [{
+                model: ChatMessage,
+                as: 'chat_messages',
+                where: { status: 'send', reciever_id: authUserId },
+                attributes: []  // don't fetch any message columns, we only need the count
+            }],
+            distinct: true  // ensures accurate count with join
+        });
+
+        return res.success(responseMessages.chatRoomFound, { count });
+
+    } catch (error) {
+        return next(error);
+    }
+};
+
+// const getChatRooms = async (req, res, next) => {
+//   const { authUserId } = req.query;
+//   try {
+//     const chatRooms = await ChatRoom.findAll({
+//       where: {
+//         [Op.or]: [{ user1: authUserId }, { user2: authUserId }],
+//       },
+//       attributes: {
+//         include: [
+//           [
+//             sequelize.fn(
+//               "COUNT",
+//               sequelize.literal(
+//                 `CASE WHEN chat_messages.reciever_id = ${authUserId} and chat_messages.status = 'send' THEN 1 END`
+//               )
+//             ),
+//             "new_message_count",
+//           ],
+//         ],
+//       },
+//       include: [
+//         { model: User, as: "User1" },
+//         { model: User, as: "User2" },
+//         {
+//           model: ChatMessage,
+//           as: "chat_messages",
+//           attributes: [],
+//           required: false,
+//         },
+//       ],
+//       group: ["ChatRoom.id"],
+//       order: [["last_message_time", "DESC"]],
+//     });
+//     let data = [];
+//     if (chatRooms.length > 0) {
+//       data = await Promise.all(
+//         chatRooms.map(async (chatRoom) => {
+//           const localTime = new Date(chatRoom.last_message_time).toLocaleString(
+//             "en-US",
+//             {
+//               day: "numeric",
+//               month: "long",
+//               year: "numeric",
+//               hour: "numeric",
+//               minute: "numeric",
+//               hour12: true,
+//             }
+//           );
+//           chatRoom.last_message_time === localTime;
+//           const authUser =
+//             chatRoom.User1.id === authUserId
+//               ? chatRoom.User1.toJSON()
+//               : chatRoom.User2.toJSON();
+//           const otherUser =
+//             chatRoom.User1.id === authUserId
+//               ? chatRoom.User2.toJSON()
+//               : chatRoom.User1.toJSON();
+//           authUser.profile = authUser.profile
+//             ? getImageUrlPublic(authUser.profile)
+//             : null;
+//           otherUser.profile = otherUser.profile
+//             ? getImageUrlPublic(otherUser.profile)
+//             : null;
+//           const isBlockedByOther = await BlockedUser.findOne({
+//             where: {
+//               blocker_id: otherUser.id,
+//               blocked_id: authUser.id,
+//             },
+//           });
+
+//           const isYouBlockedOther = await BlockedUser.findOne({
+//             where: {
+//               blocker_id: authUser.id,
+//               blocked_id: otherUser.id,
+//             },
+//           });
+//           return {
+//             ...chatRoom.toJSON(),
+//             last_message_time: localTime,
+//             User1: null,
+//             User2: null,
+//             authUser,
+//             otherUser,
+//             isBlockedByOther: !!isBlockedByOther, // return boolean
+//             isYouBlockedOther: !!isYouBlockedOther,
+//           };
+//         })
+//       );
+//     }
+//     // res
+//     //   .status(responseStatusCodes.success)
+//     //   .json({ message: "Chat messages retrieved successfully", data });
+//     return res.success(responseMessages.chatRoomFound, data);
+//   } catch (e) {
+//     // res
+//     //   .status(responseStatusCodes.internalServerError)
+//     //   .json({ message: "Something went wrong: " + e.message });
+//     return next(e);
+//   }
+// };
+
+//done
+const getChatRooms = async (req, res, next) => {
+    try {
+        const { authUserId } = req.query;
+
+        const chatRooms = await ChatRoom.findAll({
+            where: {
+                [Op.or]: [{ user1: authUserId }, { user2: authUserId }]
+            },
+            attributes: {
+                include: [[
+                    sequelize.fn(
+                        'COUNT',
+                        sequelize.literal(
+                            `CASE WHEN chat_messages.reciever_id = ${authUserId} AND chat_messages.status = 'send' THEN 1 END`
+                        )
+                    ),
+                    'new_message_count'
+                ]]
+            },
+            include: [
+                { model: User, as: 'User1', attributes: ['id', 'name', 'profile'] },
+                { model: User, as: 'User2', attributes: ['id', 'name', 'profile'] },
+                { model: ChatMessage, as: 'chat_messages', attributes: [], required: false }
+            ],
+            group: ['ChatRoom.id'],
+            order: [['last_message_time', 'DESC']]
+        });
+
+        if (!chatRooms.length) {
+            return res.success(responseMessages.chatRoomFound, []);
+        }
+
+        // Collect all other user IDs in one pass
+        const otherUserIds = chatRooms.map(room =>
+            room.User1.id === authUserId ? room.User2.id : room.User1.id
+        );
+
+        // Fetch all block statuses in 2 queries instead of 2N
+        const [blockedByOthers, youBlockedOthers] = await Promise.all([
+            BlockedUser.findAll({
+                where: { blocker_id: { [Op.in]: otherUserIds }, blocked_id: authUserId },
+                attributes: ['blocker_id']
+            }),
+            BlockedUser.findAll({
+                where: { blocker_id: authUserId, blocked_id: { [Op.in]: otherUserIds } },
+                attributes: ['blocked_id']
+            })
+        ]);
+
+        // Build sets for O(1) lookup
+        const blockedByOthersSet = new Set(blockedByOthers.map(b => b.blocker_id));
+        const youBlockedOthersSet = new Set(youBlockedOthers.map(b => b.blocked_id));
+
+        const data = chatRooms.map(chatRoom => {
+            const isAuthUser1 = chatRoom.User1.id === authUserId;
+
+            const authUser = (isAuthUser1 ? chatRoom.User1 : chatRoom.User2).toJSON();
+            const otherUser = (isAuthUser1 ? chatRoom.User2 : chatRoom.User1).toJSON();
+
+            if (authUser.profile) authUser.profile = getImageUrlPublic(authUser.profile);
+            if (otherUser.profile) otherUser.profile = getImageUrlPublic(otherUser.profile);
+
             return {
-              ...chatRoom.toJSON(),
-              last_message_time: localTime,
-              User1: null,
-              User2: null,
-              authUser,
-              otherUser,
-              isBlockedByOther: !!isBlockedByOther,
-              isYouBlockedOther: !!isYouBlockedOther,
+                ...chatRoom.toJSON(),
+                last_message_time: dayjs(chatRoom.last_message_time).format('MMMM D, YYYY h:mm A'),
+                // User1: null,
+                // User2: null,
+                authUser,
+                otherUser,
+                isBlockedByOther: blockedByOthersSet.has(otherUser.id),
+                isYouBlockedOther: youBlockedOthersSet.has(otherUser.id)
             };
-          } catch (innerErr) {
-            return null;
-          }
-        })
-      );
-      data1 = data1.filter(Boolean);
+        });
+
+        return res.success(responseMessages.chatRoomFound, data);
+
+    } catch (error) {
+        return next(error);
     }
-    return data1;
-  } catch (error) {
-    return [];
-  }
 };
 
-exports.deleteOneChatMessageForUser = async (req, res, next) => {
+//done
+const fetchChatRooms = async (authUserId) => {
+    try {
+        const chatRooms = await ChatRoom.findAll({
+            where: {
+                [Op.or]: [{ user1: authUserId }, { user2: authUserId }]
+            },
+            attributes: {
+                include: [[
+                    sequelize.fn(
+                        'COUNT',
+                        sequelize.literal(
+                            `CASE WHEN chat_messages.reciever_id = ${authUserId} AND chat_messages.status = 'send' THEN 1 END`
+                        )
+                    ),
+                    'new_message_count'
+                ]]
+            },
+            include: [
+                { model: User, as: 'User1', attributes: ['user_id', 'name', 'profile'] },
+                { model: User, as: 'User2', attributes: ['user_id', 'name', 'profile'] },
+                { model: ChatMessage, as: 'chat_messages', attributes: [], required: false }
+            ],
+            group: ['ChatRoom.id'],
+            order: [['last_message_time', 'DESC']]
+        });
+
+        if (!chatRooms.length) return [];
+
+        // Collect all other user IDs in one pass
+        const otherUserIds = chatRooms.map(room =>
+            room.User1.user_id === authUserId ? room.User2.user_id : room.User1.user_id
+        );
+
+        // 2 queries for all block statuses instead of 2N
+        const [blockedByOthers, youBlockedOthers] = await Promise.all([
+            BlockedUser.findAll({
+                where: { blocker_id: { [Op.in]: otherUserIds }, blocked_id: authUserId },
+                attributes: ['blocker_id']
+            }),
+            BlockedUser.findAll({
+                where: { blocker_id: authUserId, blocked_id: { [Op.in]: otherUserIds } },
+                attributes: ['blocked_id']
+            })
+        ]);
+
+        // Sets for O(1) lookup
+        const blockedByOthersSet = new Set(blockedByOthers.map(b => b.blocker_id));
+        const youBlockedOthersSet = new Set(youBlockedOthers.map(b => b.blocked_id));
+
+        return chatRooms.map(chatRoom => {
+            const isAuthUser1 = chatRoom.User1.user_id === authUserId;
+
+            const authUser = (isAuthUser1 ? chatRoom.User1 : chatRoom.User2).toJSON();
+            const otherUser = (isAuthUser1 ? chatRoom.User2 : chatRoom.User1).toJSON();
+
+            if (authUser.profile) authUser.profile = getImageUrlPublic(authUser.profile);
+            if (otherUser.profile) otherUser.profile = getImageUrlPublic(otherUser.profile);
+
+            return {
+                ...chatRoom.toJSON(),
+                last_message_time: dayjs(chatRoom.last_message_time).format('MMMM D, YYYY h:mm A'),
+                User1: null,
+                User2: null,
+                authUser,
+                otherUser,
+                isBlockedByOther: blockedByOthersSet.has(otherUser.user_id),
+                isYouBlockedOther: youBlockedOthersSet.has(otherUser.user_id)
+            };
+        });
+
+    } catch (error) {
+        return [];
+    }
+};
+
+//done
+const deleteOneChatMessageForUser = async (req, res, next) => {
   const { authUserId, messageId } = req.body;
   //   if (!authUserId || !messageId) {
   //     return res
@@ -652,56 +623,52 @@ exports.deleteOneChatMessageForUser = async (req, res, next) => {
   }
 };
 
-exports.deleteAllMessagesForUser = async (req, res, next) => {
-  const { authUserId, otherUserId } = req.body;
-  //   if (!authUserId || !otherUserId) {
-  //     return res
-  //       .status(responseStatusCodes.badRequest)
-  //       .json({ message: responseMessages.invalidRequest });
-  //   }
-  try {
-    const chatRoom = await ChatRoom.findOne({
-      where: {
-        [Op.or]: [
-          { user1: authUserId, user2: otherUserId },
-          { user1: otherUserId, user2: authUserId },
-        ],
-      },
-    });
-    if (!chatRoom) {
-      //   return res
-      //     .status(responseStatusCodes.notFound)
-      //     .json({ message: "Chat room not found" });
-      return res.error(
-        responseMessages.chatRoomNotFound,
-        null,
-        responseStatusCodes.notFound
-      );
+//done
+const deleteAllMessagesForUser = async (req, res, next) => {
+    try {
+        const { authUserId, otherUserId } = req.body;
+
+        const chatRoom = await ChatRoom.findOne({
+            where: {
+                [Op.or]: [
+                    { user1: authUserId, user2: otherUserId },
+                    { user1: otherUserId, user2: authUserId }
+                ]
+            },
+            attributes: ['room_id']
+        });
+
+        if (!chatRoom) {
+            return res.error(responseMessages.chatRoomNotFound, null, responseStatusCodes.notFound);
+        }
+
+        const chatMessages = await ChatMessage.findAll({
+            where: {
+                room_id: chatRoom.room_id,
+                // only fetch messages not already deleted for this user
+                deleted_for: { [Op.not]: { [Op.contains]: [authUserId] } }
+            },
+            attributes: ['id', 'deleted_for']
+        });
+
+        if (chatMessages.length) {
+            await Promise.all(
+                chatMessages.map(message => {
+                    message.deleted_for = [...message.deleted_for, authUserId];
+                    return message.save();
+                })
+            );
+        }
+
+        return res.success(responseMessages.deletedUserChat);
+
+    } catch (error) {
+        return next(error);
     }
-    const chatMessages = await ChatMessage.findAll({
-      where: {
-        room_id: chatRoom.room_id,
-      },
-    });
-    for (const message of chatMessages) {
-      if (!message.deleted_for.includes(authUserId)) {
-        message.deleted_for.push(authUserId);
-        await message.save();
-      }
-    }
-    // res
-    //   .status(responseStatusCodes.success)
-    //   .json({ message: "All chat messages deleted for user successfully" });
-    return res.success(responseMessages.deletedUserChat);
-  } catch (error) {
-    return next(error);
-    //     res
-    //       .status(responseStatusCodes.internalServerError)
-    //       .json({ message: "Something went wrong: " });
-  }
 };
 
-exports.deleteRoom = async (req, res, next) => {
+//done
+const deleteRoom = async (req, res, next) => {
   const { id } = req.body;
   //   if (!id) {
   //     return res
@@ -716,7 +683,7 @@ exports.deleteRoom = async (req, res, next) => {
         .json({ message: "Already deleted!" });
     }
     await ChatMessage.destroy({ where: { room_id: id } });
-    await Participant.destroy({ where: { room_id: id } });
+    // await Participant.destroy({ where: { room_id: id } });
     await ChatRoom.destroy({ where: { room_id: id } });
     // return res
     //   .status(responseStatusCodes.success)
@@ -730,7 +697,8 @@ exports.deleteRoom = async (req, res, next) => {
   }
 };
 
-exports.deleteMessage = async (req, res, next) => {
+//done
+const deleteMessage = async (req, res, next) => {
   const { id } = req.body;
 //   if (!id) {
 //     return res
@@ -757,3 +725,19 @@ exports.deleteMessage = async (req, res, next) => {
     return next(error);
   }
 };
+
+module.exports = {
+  addChat,
+  blockAUser,
+  reportAUser,
+  unblockAUser,
+  isUserBlocked,
+  getChatMessages,
+  getTotalChatRoomsCount,
+  getChatRooms,
+  fetchChatRooms,
+  deleteOneChatMessageForUser,
+  deleteAllMessagesForUser,
+  deleteRoom,
+  deleteMessage
+}

@@ -11,8 +11,10 @@ const sequelize = require("../../../../config/db");
 const UserSearch = require("../../../../models/userSearch.model");
 const BlockedUser = require("../../../../models/blockedUser.model");
 const admin = require("../../../../helpers/firebase");
+const { generateAdId } = require("../../../../helpers/utils");
 const path = require("path");
 const sharp = require("sharp");
+const { insertAdViewCount } = require("../service/post.service");
 
 const messaging = admin.messaging();
 const {
@@ -35,217 +37,148 @@ const {
 
 require("dotenv").config();
 
-function generateAdId() {
-  const timestamp = Date.now();
-  const randomNum = Math.floor(Math.random() * 1000);
-  const userId = `${timestamp}${randomNum}`;
-  return parseInt(userId);
-}
-
+//done
 exports.createAd = async (req, res, next) => {
-  const data = req.body;
-  // if (!data.title || !data.description || !data.ad_type || !data.category || !data.ad_prices) {
-  //     return res.status(responseStatusCodes.badRequest).json({ success: false, message: responseMessages.invalidRequest });
-  // }
   try {
-    const user = req.user;
+    const { id: userId } = req.user;
     const { ad_id, title, description, category, ad_type, ad_prices } =
       req.body;
-    await SearchCategory.create({
-      keyword: title,
-      category: category,
-      ad_type: ad_type,
-    });
-    const adStage = req.body.ad_stage || 1;
-    const adStatus = req.body.ad_status || "offline";
-    var messageDisplay;
-    var adId;
-    if (!ad_id) {
-      const ad = await Ad.create({
-        ad_id: generateAdId(),
-        user_id: user.id,
-        title,
-        description,
-        category,
-        ad_type,
-        ad_stage: adStage,
-        ad_status: adStatus,
-      });
-      const adPrices = Object.entries(ad_prices).map(([key, value]) => ({
-        ad_id: ad.ad_id,
+    const adStage = req.body.ad_stage ?? 1;
+    const adStatus = req.body.ad_status ?? "offline";
+
+    // Build price details array (reused in both create and update)
+    const buildAdPrices = (adId) =>
+      Object.entries(ad_prices).map(([key, value]) => ({
+        ad_id: adId,
         rent_duration: key,
         rent_price: value,
       }));
-      await AdPriceDetails.bulkCreate(adPrices);
-      messageDisplay = "Ad created successfully";
-      adId = ad.ad_id;
+
+    let adId;
+
+    if (!ad_id) {
+      // CREATE — run SearchCategory and Ad in parallel
+      const newAdId = generateAdId();
+
+      const [ad] = await Promise.all([
+        Ad.create({
+          ad_id: newAdId,
+          user_id: userId,
+          title,
+          description,
+          category,
+          ad_type,
+          ad_stage: adStage,
+          ad_status: adStatus,
+        }),
+        SearchCategory.create({ keyword: title, category, ad_type }),
+      ]);
+
+      await AdPriceDetails.bulkCreate(buildAdPrices(newAdId));
+      adId = newAdId;
     } else {
+      // UPDATE — find ad and validate
       const ad = await Ad.findOne({ where: { ad_id } });
+
       if (!ad) {
-        // return res.status(responseStatusCodes.notFound).json({ success: false, message: responseMessages.adNotFound });
         return res.error(
           responseMessages.adNotFound,
           null,
           responseStatusCodes.notFound,
         );
       }
-      await AdPriceDetails.destroy({ where: { ad_id: ad.ad_id } });
-      ad.title = title;
-      ad.description = description;
-      ad.category = category;
-      ad.ad_type = ad_type;
-      ad.ad_stage = adStage;
-      ad.ad_status = adStatus;
-      await ad.save();
-      const adPrices = Object.entries(ad_prices).map(([key, value]) => ({
-        ad_id: ad.ad_id,
-        rent_duration: key,
-        rent_price: value,
-      }));
-      await AdPriceDetails.bulkCreate(adPrices);
-      // messageDisplay = 'Ad updated successfully';
-      adId = ad.ad_id;
+
+      // Update ad fields and recreate prices in parallel
+      await Promise.all([
+        ad.update({
+          title,
+          description,
+          category,
+          ad_type,
+          ad_stage: adStage,
+          ad_status: adStatus,
+        }),
+        AdPriceDetails.destroy({ where: { ad_id } }).then(() =>
+          AdPriceDetails.bulkCreate(buildAdPrices(ad_id)),
+        ),
+        SearchCategory.create({ keyword: title, category, ad_type }),
+      ]);
+
+      adId = ad_id;
     }
+
     return res.success(responseMessages.adUpdated, { ad_id: adId });
-    // return res.status(responseStatusCodes.success).json({ success: true, message: messageDisplay, ad_id: adId });
   } catch (error) {
-    // return res.status(responseStatusCodes.internalServerError).json({ success: false, message: responseMessages.internalServerError });
     return next(error);
   }
 };
-function escapeXml(unsafe) {
-  return String(unsafe)
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
 
-function logoBufferHeightRatio(_buf) {
-  return 0.35;
-}
+//done
 exports.updateAdImage = async (req, res, next) => {
-  const { ad_id, ad_stage, ad_status } = req.query;
-  const images = req.files;
   try {
-    const adImages = [];
-    if (images && images.length > 0) {
-      for (const image of images) {
-        const fileName = `${ad_id}_${image.originalname}`;
-        const {success, finalFilename} = await uploadToS3(image, fileName);
-        adImages.push({
-          ad_id: ad_id,
-          image: finalFilename,
-        });
-      }
-      const ad = await Ad.findOne({ where: { ad_id: ad_id } });
-      if (!ad) {
-        // return res
-        //   .status(responseStatusCodes.notFound)
-        //   .json({ success: false, message: responseMessages.adNotFound });
-        return res.error(
-          responseMessages.adNotFound,
-          null,
-          responseStatusCodes.notFound,
-        );
-      }
-      ad.ad_status = ad_status || "offline";
-      ad.ad_stage = ad_stage || 2;
-      await ad.save();
-      await AdImage.bulkCreate(adImages);
+    const { ad_id, ad_stage, ad_status } = req.query;
+    const images = req.files;
+
+    // Find ad first before any processing
+    const ad = await Ad.findOne({
+      where: { ad_id },
+      attributes: ["ad_id", "title", "ad_status", "ad_stage"],
+    });
+
+    if (!ad) {
+      return res.error(
+        responseMessages.adNotFound,
+        null,
+        responseStatusCodes.notFound,
+      );
+    }
+
+    let adImages = [];
+
+    if (images?.length) {
+      // Upload all images to S3 in parallel
+      const uploadResults = await Promise.all(
+        images.map(async (image) => {
+          const fileName = `${ad_id}_${image.originalname}`;
+          const { finalFilename } = await uploadToS3(image, fileName);
+          return { ad_id, image: finalFilename };
+        }),
+      );
+      adImages = uploadResults;
     } else {
-      const logoPath = path.join(__dirname, "../../../../assets/logo2.png");
-
-      const generatedFile = `${ad_id}_auto.png`;
-      const ad = await Ad.findOne({ where: { ad_id: ad_id } });
-      if (!ad) {
-        return res.error(
-          responseMessages.adNotFound,
-          null,
-          responseStatusCodes.notFound,
-        );
-      }
-
-      // Canvas size
-      const width = 800,
-        height = 400;
-      const nameText = ad.title || "Ad"; // fallback
-
-      // Step 1: Create base text SVG (main content)
-      const textSvg = `
-                <svg width="${width}" height="${height}">
-                <rect width="100%" height="100%" fill="white"/>
-                <style>
-                    .title { font-size: 110px; font-weight: 700; fill: #353333ff; text-anchor: middle; dominant-baseline: middle; }
-                    .desc  { font-size: 42px;  fill: #444444; text-anchor: middle; dominant-baseline: middle; }
-                </style>
-
-                <!-- title roughly at 45% height -->
-                <text x="50%" y="45%" class="title">${escapeXml(
-                  nameText,
-                )}</text>
-                </svg>
-            `;
-      // 2) Read logo and convert to base64 (so we can embed in an SVG)
-      const logoBuffer = await sharp(logoPath)
-        .resize(Math.round(width * 0.7)) // size of the watermark (adjust as needed)
-        .png()
-        .toBuffer();
-
-      const logoBase64 = logoBuffer.toString("base64");
-
-      const logoSvg = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-                <image
-                    href="data:image/png;base64,${logoBase64}"
-                    x="${(width - Math.round(width * 0.7)) / 2}"
-                    y="${
-                      (height -
-                        Math.round(width * 0.7) *
-                          logoBufferHeightRatio(logoBuffer)) /
-                      2
-                    }"
-                    width="${Math.round(width * 0.7)}"
-                    preserveAspectRatio="xMidYMid meet"
-                    opacity="0.2"
-                />
-                </svg>
-            `;
-      const base = sharp(Buffer.from(textSvg)).png();
-
-      const buffer = await base
-        .composite([{ input: Buffer.from(logoSvg), top: 0, left: 0 }])
-        .jpeg({ quality: 92 });
-      const {success, finalFilename} = await uploadToS3(buffer, generatedFile);
-      adImages.push({
-        ad_id: ad_id,
-        image: finalFilename,
-      });
-      ad.ad_status = ad_status || "offline";
-      ad.ad_stage = ad_stage || 2;
-      await ad.save();
-      await AdImage.bulkCreate(adImages);
-    }
-    const updatedImages = await AdImage.findAll({ where: { ad_id } });
-    for (const image of updatedImages) {
-      imageUrl = getImageUrlPublic(image.image);
-      image.image = imageUrl;
+      adImages = [{ ad_id, image: "1761544844899520_auto.png" }];
     }
 
-    // return res.status(responseStatusCodes.success).json({
-    //   success: true,
-    //   message: responseMessages.imageUploadSuccess,
-    //   data: updatedImages,
-    // });
-    return res.success(responseMessages.imageUploadSuccess, updatedImages);
-  } catch (err) {
-    // return res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ success: false, message: responseMessages.internalServerError });
-    return next(err);
+    // Update ad and save images in parallel
+    await Promise.all([
+      ad.update({
+        ad_status: ad_status ?? "offline",
+        ad_stage: ad_stage ?? 2,
+      }),
+      AdImage.bulkCreate(adImages),
+    ]);
+
+    // Fetch updated images and attach URLs
+    const updatedImages = await AdImage.findAll({
+      where: { ad_id },
+      attributes: ["ad_id", "image"],
+    });
+
+    const updatedImagesWithUrls = updatedImages.map((img) => ({
+      ...img.toJSON(),
+      image: getImageUrlPublic(img.image),
+    }));
+
+    return res.success(
+      responseMessages.imageUploadSuccess,
+      updatedImagesWithUrls,
+    );
+  } catch (error) {
+    return next(error);
   }
 };
 
+//done
 exports.deletAdImage = async (req, res, next) => {
   const { id } = req.body;
   //   if (!id) {
@@ -279,206 +212,315 @@ exports.deletAdImage = async (req, res, next) => {
   }
 };
 
+// exports.updateAdAddress = async (req, res, next) => {
+//   const {
+//     ad_id,
+//     country,
+//     latitude,
+//     longitude,
+//     state,
+//     district,
+//     locality,
+//     ad_stage,
+//     ad_status,
+//     place,
+//   } = req.body;
+//   if (!ad_id || !country || latitude === undefined || longitude === undefined) {
+//     // return res
+//     //   .status(responseStatusCodes.badRequest)
+//     //   .json({ success: false, message: responseMessages.invalidRequest });
+//     return res.error(
+//       responseMessages.invalidRequest,
+//       null,
+//       responseStatusCodes.badRequest,
+//     );
+//   }
+//   try {
+//     let adLocation = await AdLocation.findOne({ where: { ad_id } });
+//     if (adLocation) {
+//       adLocation.country = country;
+//       adLocation.state = state;
+//       adLocation.district = district;
+//       adLocation.locality = locality;
+//       adLocation.place = place;
+//       adLocation.longitude = longitude;
+//       adLocation.latitude = latitude;
+//       await adLocation.save();
+//     } else {
+//       adLocation = new AdLocation({
+//         ad_id,
+//         country,
+//         state,
+//         district,
+//         locality,
+//         place,
+//         longitude,
+//         latitude,
+//       });
+//       await adLocation.save();
+//     }
+//     const ad = await Ad.findOne({ where: { ad_id } });
+//     ad.ad_status = ad_status || "online";
+//     ad.ad_stage = ad_stage || 3;
+//     await ad.save();
+//     if (!ad) {
+//       //   return res
+//       //     .status(responseStatusCodes.notFound)
+//       //     .json({ success: false, message: responseMessages.adNotFound });
+//       return res.error(
+//         responseMessages.adNotFound,
+//         null,
+//         responseStatusCodes.notFound,
+//       );
+//     }
+//     const usersToNotify = await User.findAll();
+//     const tokens = usersToNotify
+//       .map((user) => user.notification_token)
+//       .filter((token) => token);
+//     const usersWithTokens = usersToNotify
+//       .filter((user) => user.notification_token) // keep only users with token
+//       .map((user) => ({
+//         name: user.name, // or user.username, depending on your column
+//         token: user.notification_token,
+//       }));
+
+//     tokens.push("ok");
+//     const message = {
+//       notification: {
+//         title: "A Fresh Listing Awaits!",
+//         body: `Your next favorite deal might be "${ad.title}". Tap to check it out!`,
+//       },
+//       data: {
+//         type: "adpost", // 👈 distinguish between chat/adpost
+//         ad_id: ad.ad_id.toString(),
+//       },
+//       tokens: tokens,
+//     };
+//     // const messages = tokens.map(token => ({
+//     // token,
+//     // notification: {
+//     //     title: "New Ad Posted!",
+//     //     body: `Check out: ${title}`,
+//     // },
+//     // }));
+
+//     const response = await messaging.sendEachForMulticast(message);
+//     // return res.status(responseStatusCodes.success).json({
+//     //   success: true,
+//     //   message: responseMessages.locationSuccess,
+//     //   successCount: response.successCount,
+//     //   failureCount: response.failureCount,
+//     // });
+//     return res.success(responseMessages.locationSuccess, {
+//       successCount: response.successCount,
+//       failureCount: response.failureCount,
+//     });
+//   } catch (err) {
+//     // return res
+//     //   .status(responseStatusCodes.internalServerError)
+//     //   .json({ success: false, message: responseMessages.internalServerError });
+//   }
+// };
+
+//done
 exports.updateAdAddress = async (req, res, next) => {
-  const {
-    ad_id,
-    country,
-    latitude,
-    longitude,
-    state,
-    district,
-    locality,
-    ad_stage,
-    ad_status,
-    place,
-  } = req.body;
-  if (!ad_id || !country || latitude === undefined || longitude === undefined) {
-    // return res
-    //   .status(responseStatusCodes.badRequest)
-    //   .json({ success: false, message: responseMessages.invalidRequest });
-    return res.error(
-      responseMessages.invalidRequest,
-      null,
-      responseStatusCodes.badRequest,
-    );
-  }
   try {
-    let adLocation = await AdLocation.findOne({ where: { ad_id } });
-    if (adLocation) {
-      adLocation.country = country;
-      adLocation.state = state;
-      adLocation.district = district;
-      adLocation.locality = locality;
-      adLocation.place = place;
-      adLocation.longitude = longitude;
-      adLocation.latitude = latitude;
-      await adLocation.save();
-    } else {
-      adLocation = new AdLocation({
-        ad_id,
-        country,
-        state,
-        district,
-        locality,
-        place,
-        longitude,
-        latitude,
-      });
-      await adLocation.save();
+    const {
+      ad_id,
+      country,
+      latitude,
+      longitude,
+      state,
+      district,
+      locality,
+      place,
+      ad_stage,
+      ad_status,
+    } = req.body;
+
+    if (
+      !ad_id ||
+      !country ||
+      latitude === undefined ||
+      longitude === undefined
+    ) {
+      return res.error(
+        responseMessages.invalidRequest,
+        null,
+        responseStatusCodes.badRequest,
+      );
     }
-    const ad = await Ad.findOne({ where: { ad_id } });
-    ad.ad_status = ad_status || "online";
-    ad.ad_stage = ad_stage || 3;
-    await ad.save();
+
+    const locationFields = {
+      ad_id,
+      country,
+      state,
+      district,
+      locality,
+      place,
+      longitude,
+      latitude,
+    };
+
+    // Find ad and location in parallel
+    const [ad, adLocation] = await Promise.all([
+      Ad.findOne({ where: { ad_id } }),
+      AdLocation.findOne({ where: { ad_id } }),
+    ]);
+
     if (!ad) {
-      //   return res
-      //     .status(responseStatusCodes.notFound)
-      //     .json({ success: false, message: responseMessages.adNotFound });
       return res.error(
         responseMessages.adNotFound,
         null,
         responseStatusCodes.notFound,
       );
     }
-    const usersToNotify = await User.findAll();
-    const tokens = usersToNotify
-      .map((user) => user.notification_token)
-      .filter((token) => token);
-    const usersWithTokens = usersToNotify
-      .filter((user) => user.notification_token) // keep only users with token
-      .map((user) => ({
-        name: user.name, // or user.username, depending on your column
-        token: user.notification_token,
-      }));
 
-    tokens.push("ok");
-    const message = {
+    // Upsert location and update ad in parallel
+    await Promise.all([
+      adLocation
+        ? adLocation.update(locationFields)
+        : AdLocation.create(locationFields),
+      ad.update({
+        ad_status: ad_status ?? "online",
+        ad_stage: ad_stage ?? 3,
+      }),
+    ]);
+
+    // Fetch only tokens — no need to fetch all user columns
+    const users = await User.findAll({
+      attributes: ["notification_token"],
+      where: { notification_token: { [Op.ne]: null } },
+    });
+
+    const tokens = users.map((u) => u.notification_token);
+
+    if (!tokens.length) {
+      return res.success(responseMessages.locationSuccess, {
+        successCount: 0,
+        failureCount: 0,
+      });
+    }
+
+    const response = await messaging.sendEachForMulticast({
+      tokens,
       notification: {
         title: "A Fresh Listing Awaits!",
         body: `Your next favorite deal might be "${ad.title}". Tap to check it out!`,
       },
       data: {
-        type: "adpost", // 👈 distinguish between chat/adpost
+        type: "adpost",
         ad_id: ad.ad_id.toString(),
       },
-      tokens: tokens,
-    };
-    // const messages = tokens.map(token => ({
-    // token,
-    // notification: {
-    //     title: "New Ad Posted!",
-    //     body: `Check out: ${title}`,
-    // },
-    // }));
+    });
 
-    const response = await messaging.sendEachForMulticast(message);
-    // return res.status(responseStatusCodes.success).json({
-    //   success: true,
-    //   message: responseMessages.locationSuccess,
-    //   successCount: response.successCount,
-    //   failureCount: response.failureCount,
-    // });
     return res.success(responseMessages.locationSuccess, {
       successCount: response.successCount,
       failureCount: response.failureCount,
     });
-  } catch (err) {
-    // return res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ success: false, message: responseMessages.internalServerError });
+  } catch (error) {
+    return next(error);
   }
 };
 
+//done
 exports.deleteAd = async (req, res, next) => {
-  const { adId } = req.body;
-  if (!adId) {
-    // return res
-    //   .status(responseStatusCodes.badRequest)
-    //   .json({ message: responseMessages.invalidRequest });
-  }
   try {
-    const adRows = await Ad.findOne({ where: { ad_id: adId } });
-    if (!adRows) {
-      //   return res
-      //     .status(responseStatusCodes.notFound)
-      //     .json({ message: responseMessages.adDeleted });
+    const { adId } = req.body;
+
+    const ad = await Ad.findOne({
+      where: { ad_id: adId },
+      attributes: ["ad_id", "ad_images"],
+    });
+
+    if (!ad) {
       return res.error(
         responseMessages.adNotFound,
         null,
         responseStatusCodes.notFound,
       );
     }
-    await AdImage.destroy({ where: { ad_id: adId } });
-    await AdLocation.destroy({ where: { ad_id: adId } });
-    await AdPriceDetails.destroy({ where: { ad_id: adId } });
-    await AdView.destroy({ where: { ad_id: adId } });
-    await AdWishLists.destroy({ where: { ad_id: adId } });
+
+    // Delete all child records in parallel
+    await Promise.all([
+      AdImage.destroy({ where: { ad_id: adId } }),
+      AdLocation.destroy({ where: { ad_id: adId } }),
+      AdPriceDetails.destroy({ where: { ad_id: adId } }),
+      AdView.destroy({ where: { ad_id: adId } }),
+      AdWishLists.destroy({ where: { ad_id: adId } }),
+    ]);
+
+    // Delete parent last
     await Ad.destroy({ where: { ad_id: adId } });
-    // return res
-    //   .status(responseStatusCodes.success)
-    //   .json({ message: responseMessages.adDeleted });
+
     return res.success(responseMessages.adDeleted);
   } catch (error) {
-    // return res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
 
+//done
 exports.getAdDetails = async (req, res, next) => {
   try {
-    const userId = req.body.user_id;
-    let wishLists;
-    let wishListAdIds;
-    if (userId) {
-      wishLists = await AdWishLists.findAll({ where: { user_id: userId } });
-      wishListAdIds = wishLists.map((item) => item.ad_id);
-    }
-    // if (!req.body.ad_id) {
-    //   return res
-    //     .status(responseStatusCodes.badRequest)
-    //     .json({ message: responseMessages.invalidRequest });
-    // }
-    const ad = await Ad.findOne({
-      where: { ad_id: req.body.ad_id },
-      include: [
-        { model: User, as: "user" },
-        { model: AdImage, as: "ad_images" },
-        { model: AdLocation, as: "ad_location" },
-        { model: AdPriceDetails, as: "ad_price_details" },
-      ],
-      nest: true,
-    });
+    const { ad_id, user_id: userId } = req.body;
+
+    // Fetch ad and wishlist in parallel
+    const [ad, wishListAdIds] = await Promise.all([
+      Ad.findOne({
+        where: { ad_id },
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "name", "email", "mobile_number", "profile"],
+          },
+          { model: AdImage, as: "ad_images", attributes: ["image"] },
+          { model: AdLocation, as: "ad_location" },
+          {
+            model: AdPriceDetails,
+            as: "ad_price_details",
+            attributes: ["rent_price", "rent_duration"],
+          },
+        ],
+        nest: true,
+      }),
+      userId
+        ? AdWishLists.findAll({
+            where: { user_id: userId },
+            attributes: ["ad_id"],
+          }).then((wishLists) => wishLists.map((w) => w.ad_id))
+        : Promise.resolve([]),
+    ]);
+
     if (!ad) {
-      //   return res
-      //     .status(responseStatusCodes.notFound)
-      //     .json({ message: responseMessages.adNotFound });
       return res.error(
         responseMessages.adNotFound,
         null,
         responseStatusCodes.notFound,
       );
     }
-    if (userId) {
-      await insertAdViewCount(userId, ad.ad_id);
-    }
-    const formattedAd = await formatAd(ad);
-    formattedAd.wishListed = userId ? wishListAdIds.includes(ad.ad_id) : false;
-    // res.status(responseStatusCodes.success).json(formattedAd);
+
+    // Track view and format ad in parallel
+    const [formattedAd] = await Promise.all([
+      formatAd(ad),
+      userId ? insertAdViewCount(userId, ad.ad_id) : Promise.resolve(),
+    ]);
+
+    formattedAd.wishListed = wishListAdIds.includes(ad.ad_id);
+
     return res.success(responseMessages.adDetailFetched, formattedAd);
   } catch (error) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
 
+//done
 exports.myAds = async (req, res, next) => {
   try {
-    const userId = req.user.id;
-    const ads = await Ad.findAll({
+    const { id: userId } = req.user;
+    const { limit = 10, offset = 0 } = req.query;
+
+    const { count, rows: ads } = await Ad.findAndCountAll({
       where: { user_id: userId, ad_stage: 3 },
       attributes: {
         include: [
@@ -497,107 +539,93 @@ exports.myAds = async (req, res, next) => {
         ],
       },
       include: [
-        { model: User, as: "user" },
-        { model: AdImage, as: "ad_images" },
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "name", "email", "mobile_number", "profile"],
+        },
+        { model: AdImage, as: "ad_images", attributes: ["image"] },
         { model: AdLocation, as: "ad_location" },
-        { model: AdPriceDetails, as: "ad_price_details" },
+        {
+          model: AdPriceDetails,
+          as: "ad_price_details",
+          attributes: ["rent_price", "rent_duration"],
+        },
       ],
       nest: true,
+      order: [["createdAt", "DESC"]],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      distinct: true,
     });
+
     const formattedAds = await Promise.all(
       ads.map((ad) => formatAd(ad, { includeCounts: true })),
     );
-    // res.status(responseStatusCodes.success).json(formattedAds);
-    return res.success(responseMessages.myadsFetched, formattedAds);
+
+    return res.success(responseMessages.myadsFetched, {
+      ads: formattedAds,
+      total: count,
+    });
   } catch (error) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
 
-const insertAdViewCount = async (userId, adId) => {
-  try {
-    let adView = await AdView.findOne({
-      where: { user_id: userId, ad_id: adId },
-    });
-    if (!adView) {
-      await AdView.create({
-        user_id: userId,
-        ad_id: adId,
-        view_count: 1,
-      });
-    } else {
-      adView.view_count += 1;
-      await adView.save();
-    }
-    return "successfully updated";
-  } catch (error) {
-    throw new Error("Error updating ad view count");
-  }
-};
-
+//done
 exports.getRecentUnsavedPost = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const { id: userId } = req.user;
+
     const ad = await Ad.findOne({
       where: {
         user_id: userId,
-        ad_stage: {
-          [Op.lt]: 3,
-        },
+        ad_stage: { [Op.lt]: 3 },
       },
       include: [
-        { model: AdImage, as: "ad_images" },
-        { model: AdPriceDetails, as: "ad_price_details" },
+        { model: AdImage, as: "ad_images", attributes: ["image"] },
+        {
+          model: AdPriceDetails,
+          as: "ad_price_details",
+          attributes: ["rent_price", "rent_duration"],
+        },
         { model: AdLocation, as: "ad_location" },
       ],
       order: [["updatedAt", "DESC"]],
       nest: true,
     });
+
     if (!ad) {
-      //   return res.status(responseStatusCodes.success).json({});
       return res.success(
         responseMessages.adNotFound,
-        [],
+        null,
         responseStatusCodes.success,
       );
     }
-    const formattedAd = await formatAd(ad, { includeUser: false });
-    // res.status(responseStatusCodes.success).json(formattedAd);
+
+    const formattedAd = formatAd(ad, { includeUser: false });
+
     return res.success(responseMessages.unsavedAds, formattedAd);
   } catch (error) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
 
+//done
 exports.searchCategories = async (req, res, next) => {
   try {
     const { keyword, ad_type } = req.body;
-    // if (!keyword || !ad_type) {
-    //   return res
-    //     .status(responseStatusCodes.badRequest)
-    //     .json({ message: responseMessages.invalidRequest });
-    // }
-    const datas = await SearchCategory.findAll({
+    const result = await SearchCategory.findAll({
       where: {
-        keyword: { [Op.like]: `%${keyword}%` },
+        keyword: { [Op.like]: `${keyword}%` }, // startsWith at DB level
         ad_type,
       },
+      attributes: ["keyword", "category", "ad_type"],
+      order: [["keyword", "ASC"]],
     });
-    const result = datas.filter((data) =>
-      data.keyword.toLowerCase().startsWith(keyword.toLowerCase()),
-    );
-    // res.status(responseStatusCodes.success).json(result);
+
     return res.success(responseMessages.searchCategories, result);
   } catch (error) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
@@ -762,9 +790,9 @@ exports.searchCategories = async (req, res, next) => {
 //   }
 // };
 
+//done
 exports.recommentedPosts = async (req, res, next) => {
   try {
-
     // const page = Math.max(1, parseInt(req.body.page) || 1);
     // const perPage = 16;
     // const offset = (page - 1) * perPage;
@@ -826,306 +854,410 @@ exports.recommentedPosts = async (req, res, next) => {
   }
 };
 
+// exports.getAllPosts = async (req, res, next) => {
+//   let posts = await Ad.findAll({
+//     where: {
+//       ad_status: "online",
+//       ad_type: "rent",
+//       ad_stage: 3,
+//     },
+//     include: [
+//       { model: User, as: "user" },
+//       { model: AdImage, as: "ad_images" },
+//       { model: AdPriceDetails, as: "ad_price_details" },
+//     ],
+//   });
+//   //   res.status(responseStatusCodes.success).json(posts);
+//   return res.success(responseMessages.allAds, posts);
+// };
+
 exports.getAllPosts = async (req, res, next) => {
-  let posts = await Ad.findAll({
-    where: {
-      ad_status: "online",
-      ad_type: "rent",
-      ad_stage: 3,
-    },
-    include: [
-      { model: User, as: "user" },
-      { model: AdImage, as: "ad_images" },
-      { model: AdPriceDetails, as: "ad_price_details" },
-    ],
-  });
-  //   res.status(responseStatusCodes.success).json(posts);
-  return res.success(responseMessages.allAds, posts);
-};
-
-exports.searchAds = async (req, res, next) => {
   try {
-    const { keyword, page = 1, min_price, max_price } = req.body;
-    // if (!keyword) {
-    //   return res
-    //     .status(responseStatusCodes.badRequest)
-    //     .json({ message: responseMessages.invalidRequest });
-    // }
+    const { limit = 10, offset = 0 } = req.query;
 
-    const perPage = 15;
-    const offset = (page - 1) * perPage;
-
-    let adsQuery = {
+    const { count, rows: posts } = await Ad.findAndCountAll({
       where: {
         ad_status: "online",
+        ad_type: "rent",
         ad_stage: 3,
       },
       include: [
-        { model: User, as: "user" },
-        { model: AdImage, as: "ad_images" },
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "name", "email", "mobile_number", "profile"],
+        },
+        { model: AdImage, as: "ad_images", attributes: ["image"] },
         {
           model: AdPriceDetails,
           as: "ad_price_details",
-          // where: {
-          //     ...(min_price !== undefined ? { rent_price: { [Op.gte]: Number(min_price) } } : {}),
-          //     ...(max_price !== undefined ? { rent_price: { ...(min_price !== undefined ? { [Op.gte]: Number(min_price), [Op.lte]: Number(max_price) } : { [Op.lte]: Number(max_price) }) } } : {})
-          // },
+          attributes: ["rent_price", "rent_duration"],
         },
-        { model: AdLocation, as: "ad_location" },
       ],
+      order: [["createdAt", "DESC"]],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
       distinct: true,
-      limit: perPage,
-      offset: offset,
-    };
+      nest: true,
+    });
 
-    if (!isNaN(keyword)) {
-      adsQuery.where.ad_id = Number(keyword);
-    } else {
-      adsQuery.where[Op.or] = [
-        { title: { [Op.like]: `%${keyword}%` } },
-        { category: { [Op.like]: `%${keyword}%` } },
-        { description: { [Op.like]: `%${keyword}%` } },
-      ];
-    }
-    const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
-    const formattedAds = await Promise.all(ads.map((ad) => formatAd(ad)));
-    const fullUrl = `${req.protocol}://${req.get("host")}${
-      req.originalUrl.split("?")[0]
-    }`;
-    const pagination = formatPagination({
-      page: Number(page),
-      perPage,
+    const formattedPosts = posts.map((post) => formatAd(post));
+
+    return res.success(responseMessages.allAds, {
+      data: formattedPosts,
       total: count,
-      path: fullUrl,
     });
-    // res.status(responseStatusCodes.success).json({
-    //   ...pagination,
-    //   data: formattedAds,
-    // });
-    return res.success(responseMessages.searchCategories, {
-      pagination,
-      data: formattedAds,
-    });
-    // res.status(responseStatusCodes.success).json(response);
   } catch (error) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
 
-exports.rentCategoryPosts = async (req, res, next) => {
-  try {
-    const {
-      ad_type,
-      location_type,
-      location,
-      latitude,
-      longitude,
-      category,
-      keyword,
-      page = 1,
-      user_id,
-      min_price,
-      max_price,
-    } = req.body;
-    const perPage = 15;
-    const offset = (page - 1) * perPage;
-    if (user_id) {
-      await UserSearch.create({
-        user_id: user_id,
-        keyword: req.body.keyword || "",
-        category: req.body.category || "",
-        ad_type: req.body.ad_type,
-        location_type: req.body.location_type || "",
-        location: req.body.location || "",
-        latitude: req.body.latitude || null,
-        longitude: req.body.longitude || null,
-      });
-    }
-    let blockedUserIds = [];
-    if (user_id) {
-      const blockedRecords = await BlockedUser.findAll({
-        where: {
-          [Op.or]: [{ blocker_id: user_id }, { blocked_id: user_id }],
-        },
-        raw: true,
-      });
+// exports.searchAds = async (req, res, next) => {
+//   try {
+//     const { keyword, page = 1, min_price, max_price } = req.body;
+//     // if (!keyword) {
+//     //   return res
+//     //     .status(responseStatusCodes.badRequest)
+//     //     .json({ message: responseMessages.invalidRequest });
+//     // }
 
-      blockedUserIds = blockedRecords.map((record) =>
-        record.blocker_id !== user_id ? record.blocked_id : record.blocker_id,
-      );
-    }
-    let response;
-    let adsQuery;
-    const allAds = await Ad.findAll({ attributes: ["ad_id"] });
-    const allAdIds = allAds.map((ad) => ad.ad_id);
-    if (keyword && allAdIds.includes(Number(keyword))) {
-      adsQuery = {
-        where: {
-          ad_id: Number(keyword),
-          ad_stage: 3,
-          [Op.and]: [{ [Op.notIn]: blockedUserIds }],
-        },
-        include: [
-          { model: User, as: "user" },
-          { model: AdImage, as: "ad_images" },
-          {
-            model: AdPriceDetails,
-            as: "ad_price_details",
-            // where: {
-            //     ...(min_price !== undefined ? { rent_price: { [Op.gte]: Number(min_price) } } : {}),
-            //     ...(max_price !== undefined ? { rent_price: { ...(min_price !== undefined ? { [Op.gte]: Number(min_price), [Op.lte]: Number(max_price) } : { [Op.lte]: Number(max_price) }) } } : {})
-            // },
-          },
-          { model: AdLocation, as: "ad_location" },
-        ],
-        distinct: true,
-        limit: perPage,
-        offset: offset,
-      };
-    } else if (!location_type || !location || !latitude || !longitude) {
-      adsQuery = {
-        where: {
-          ad_type: ad_type,
-          ad_status: "online",
-          ad_stage: 3,
-        },
-        include: [
-          { model: User, as: "user" },
-          { model: AdImage, as: "ad_images" },
-          {
-            model: AdPriceDetails,
-            as: "ad_price_details",
-            // where: {
-            //     ...(min_price !== undefined ? { rent_price: { [Op.gte]: Number(min_price) } } : {}),
-            //     ...(max_price !== undefined ? { rent_price: { ...(min_price !== undefined ? { [Op.gte]: Number(min_price), [Op.lte]: Number(max_price) } : { [Op.lte]: Number(max_price) }) } } : {})
-            // },
-          },
-          { model: AdLocation, as: "ad_location" },
-        ],
-        distinct: true,
-        limit: perPage,
-        offset: offset,
-      };
-      if (category) adsQuery.where.category = category;
-      if (keyword) {
-        adsQuery.where[Op.or] = [
-          { category: { [Op.like]: `%${keyword}%` } },
-          { title: { [Op.like]: `%${keyword}%` } },
-          { description: { [Op.like]: `%${keyword}%` } },
-        ];
-      }
-    } else {
-      adsQuery = {
-        where: {
-          ad_type: ad_type,
-          ad_status: "online",
-          ad_stage: 3,
-        },
-        attributes: {
-          include: [
-            [
-              literal(`(
-                                SELECT (6371 * 
-                                    acos(cos(radians(${latitude})) * cos(radians(ad_location.latitude)) * 
-                                    cos(radians(ad_location.longitude) - radians(${longitude})) + 
-                                    sin(radians(${latitude})) * sin(radians(ad_location.latitude)))
-                                ) AS distance
-                            )`),
-              "distance",
-            ],
-          ],
-        },
-        include: [
-          { model: User, as: "user" },
-          { model: AdImage, as: "ad_images" },
-          {
-            model: AdPriceDetails,
-            as: "ad_price_details",
-            // where: {
-            //     ...(min_price !== null ? { rent_price: { [Op.gte]: Number(min_price) } } : {}),
-            //     ...(max_price !== null ? { rent_price: { ...(min_price !== null ? { [Op.gte]: Number(min_price), [Op.lte]: Number(max_price) } : { [Op.lte]: Number(max_price) }) } } : {})
-            // },
-          },
-        ],
-        order: [[sequelize.literal("distance"), "ASC"]],
-        distinct: true,
-        limit: perPage,
-        offset: offset,
-      };
-      if (category) adsQuery.where.category = category;
-      if (keyword) {
-        adsQuery.where = {
-          ...adsQuery.where,
+//     const perPage = 15;
+//     const offset = (page - 1) * perPage;
+
+//     let adsQuery = {
+//       where: {
+//         ad_status: "online",
+//         ad_stage: 3,
+//       },
+//       include: [
+//         { model: User, as: "user" },
+//         { model: AdImage, as: "ad_images" },
+//         {
+//           model: AdPriceDetails,
+//           as: "ad_price_details",
+//           // where: {
+//           //     ...(min_price !== undefined ? { rent_price: { [Op.gte]: Number(min_price) } } : {}),
+//           //     ...(max_price !== undefined ? { rent_price: { ...(min_price !== undefined ? { [Op.gte]: Number(min_price), [Op.lte]: Number(max_price) } : { [Op.lte]: Number(max_price) }) } } : {})
+//           // },
+//         },
+//         { model: AdLocation, as: "ad_location" },
+//       ],
+//       distinct: true,
+//       limit: perPage,
+//       offset: offset,
+//     };
+
+//     if (!isNaN(keyword)) {
+//       adsQuery.where.ad_id = Number(keyword);
+//     } else {
+//       adsQuery.where[Op.or] = [
+//         { title: { [Op.like]: `%${keyword}%` } },
+//         { category: { [Op.like]: `%${keyword}%` } },
+//         { description: { [Op.like]: `%${keyword}%` } },
+//       ];
+//     }
+//     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
+//     const formattedAds = await Promise.all(ads.map((ad) => formatAd(ad)));
+//     const fullUrl = `${req.protocol}://${req.get("host")}${
+//       req.originalUrl.split("?")[0]
+//     }`;
+//     const pagination = formatPagination({
+//       page: Number(page),
+//       perPage,
+//       total: count,
+//       path: fullUrl,
+//     });
+//     // res.status(responseStatusCodes.success).json({
+//     //   ...pagination,
+//     //   data: formattedAds,
+//     // });
+//     return res.success(responseMessages.searchCategories, {
+//       pagination,
+//       data: formattedAds,
+//     });
+//     // res.status(responseStatusCodes.success).json(response);
+//   } catch (error) {
+//     // res
+//     //   .status(responseStatusCodes.internalServerError)
+//     //   .json({ message: responseMessages.internalServerError });
+//     return next(error);
+//   }
+// };
+
+exports.searchAds = async (req, res, next) => {
+  try {
+    const { keyword, limit = 15, offset = 0, min_price, max_price } = req.body;
+
+    // Build price filter if provided
+    const priceWhere = {};
+    if (min_price !== undefined) priceWhere[Op.gte] = Number(min_price);
+    if (max_price !== undefined) priceWhere[Op.lte] = Number(max_price);
+    const hasPriceFilter = Object.keys(priceWhere).length > 0;
+
+    // Build search filter — numeric keyword searches by ad_id, otherwise full text search
+    const searchWhere = !isNaN(keyword)
+      ? { ad_id: Number(keyword) }
+      : {
           [Op.or]: [
-            { category: { [Op.like]: `%${keyword}%` } },
             { title: { [Op.like]: `%${keyword}%` } },
+            { category: { [Op.like]: `%${keyword}%` } },
             { description: { [Op.like]: `%${keyword}%` } },
           ],
         };
-      }
-      if (location_type === "locality" || location_type === "place") {
-        adsQuery.include.push({
-          model: AdLocation,
-          as: "ad_location",
-          where: {
-            [Op.or]: [{ locality: location }, { place: location }],
-          },
-        });
-      } else {
-        adsQuery.include.push({
-          model: AdLocation,
-          as: "ad_location",
-          where: {
-            [Op.or]: [{ state: location }, { country: location }],
-          },
-        });
-      }
-    }
-    const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
 
-    const userId = user_id;
-    let wishListAdIds;
-    if (userId) {
-      const wishLists = await AdWishLists.findAll({
-        where: { user_id: userId },
-        attributes: ["ad_id"],
-      });
-      wishListAdIds = wishLists.map((wishList) => wishList.ad_id);
-      ads.map((ad) => {
-        ad.wishListed = wishListAdIds.includes(ad.ad_id);
-        if (ad.user) {
-          ad.user = ad.user.toJSON();
-          delete ad.user.token;
-        }
-      });
-    }
-    const formattedAds = await Promise.all(
-      ads.map((ad) => formatAd(ad, { userId: user_id, wishListAdIds })),
-    );
-    const fullUrl = `${req.protocol}://${req.get("host")}${
-      req.originalUrl.split("?")[0]
-    }`;
-    response = {
-      pagination: formatPagination({
-        page: Number(page),
-        perPage,
-        total: count,
-        path: fullUrl,
-      }),
+    const { count, rows: ads } = await Ad.findAndCountAll({
+      where: {
+        ad_status: "online",
+        ad_stage: 3,
+        ...searchWhere,
+      },
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "name", "email", "mobile_number", "profile"],
+        },
+        { model: AdImage, as: "ad_images", attributes: ["image"] },
+        {
+          model: AdPriceDetails,
+          as: "ad_price_details",
+          attributes: ["rent_price", "rent_duration"],
+          ...(hasPriceFilter && {
+            where: { rent_price: priceWhere },
+            required: true,
+          }),
+        },
+        { model: AdLocation, as: "ad_location" },
+      ],
+      order: [["createdAt", "DESC"]],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      distinct: true,
+      nest: true,
+    });
+
+    const formattedAds = ads.map((ad) => formatAd(ad));
+
+    return res.success(responseMessages.searchCategories, {
       data: formattedAds,
-    };
-    // res.status(responseStatusCodes.success).json(response);
-    return res.success(responseMessages.rentCategoryPosts, response);
+      total: count,
+    });
   } catch (error) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
+
+// exports.rentCategoryPosts = async (req, res, next) => {
+//   try {
+//     const {
+//       ad_type,
+//       location_type,
+//       location,
+//       latitude,
+//       longitude,
+//       category,
+//       keyword,
+//       page = 1,
+//       user_id,
+//       min_price,
+//       max_price,
+//     } = req.body;
+//     const perPage = 15;
+//     const offset = (page - 1) * perPage;
+//     if (user_id) {
+//       await UserSearch.create({
+//         user_id: user_id,
+//         keyword: req.body.keyword || "",
+//         category: req.body.category || "",
+//         ad_type: req.body.ad_type,
+//         location_type: req.body.location_type || "",
+//         location: req.body.location || "",
+//         latitude: req.body.latitude || null,
+//         longitude: req.body.longitude || null,
+//       });
+//     }
+//     let blockedUserIds = [];
+//     if (user_id) {
+//       const blockedRecords = await BlockedUser.findAll({
+//         where: {
+//           [Op.or]: [{ blocker_id: user_id }, { blocked_id: user_id }],
+//         },
+//         raw: true,
+//       });
+
+//       blockedUserIds = blockedRecords.map((record) =>
+//         record.blocker_id !== user_id ? record.blocked_id : record.blocker_id,
+//       );
+//     }
+//     let response;
+//     let adsQuery;
+//     const allAds = await Ad.findAll({ attributes: ["ad_id"] });
+//     const allAdIds = allAds.map((ad) => ad.ad_id);
+//     if (keyword && allAdIds.includes(Number(keyword))) {
+//       adsQuery = {
+//         where: {
+//           ad_id: Number(keyword),
+//           ad_stage: 3,
+//           [Op.and]: [{ [Op.notIn]: blockedUserIds }],
+//         },
+//         include: [
+//           { model: User, as: "user" },
+//           { model: AdImage, as: "ad_images" },
+//           {
+//             model: AdPriceDetails,
+//             as: "ad_price_details",
+//             // where: {
+//             //     ...(min_price !== undefined ? { rent_price: { [Op.gte]: Number(min_price) } } : {}),
+//             //     ...(max_price !== undefined ? { rent_price: { ...(min_price !== undefined ? { [Op.gte]: Number(min_price), [Op.lte]: Number(max_price) } : { [Op.lte]: Number(max_price) }) } } : {})
+//             // },
+//           },
+//           { model: AdLocation, as: "ad_location" },
+//         ],
+//         distinct: true,
+//         limit: perPage,
+//         offset: offset,
+//       };
+//     } else if (!location_type || !location || !latitude || !longitude) {
+//       adsQuery = {
+//         where: {
+//           ad_type: ad_type,
+//           ad_status: "online",
+//           ad_stage: 3,
+//         },
+//         include: [
+//           { model: User, as: "user" },
+//           { model: AdImage, as: "ad_images" },
+//           {
+//             model: AdPriceDetails,
+//             as: "ad_price_details",
+//             // where: {
+//             //     ...(min_price !== undefined ? { rent_price: { [Op.gte]: Number(min_price) } } : {}),
+//             //     ...(max_price !== undefined ? { rent_price: { ...(min_price !== undefined ? { [Op.gte]: Number(min_price), [Op.lte]: Number(max_price) } : { [Op.lte]: Number(max_price) }) } } : {})
+//             // },
+//           },
+//           { model: AdLocation, as: "ad_location" },
+//         ],
+//         distinct: true,
+//         limit: perPage,
+//         offset: offset,
+//       };
+//       if (category) adsQuery.where.category = category;
+//       if (keyword) {
+//         adsQuery.where[Op.or] = [
+//           { category: { [Op.like]: `%${keyword}%` } },
+//           { title: { [Op.like]: `%${keyword}%` } },
+//           { description: { [Op.like]: `%${keyword}%` } },
+//         ];
+//       }
+//     } else {
+//       adsQuery = {
+//         where: {
+//           ad_type: ad_type,
+//           ad_status: "online",
+//           ad_stage: 3,
+//         },
+//         attributes: {
+//           include: [
+//             [
+//               literal(`(
+//                                 SELECT (6371 * 
+//                                     acos(cos(radians(${latitude})) * cos(radians(ad_location.latitude)) * 
+//                                     cos(radians(ad_location.longitude) - radians(${longitude})) + 
+//                                     sin(radians(${latitude})) * sin(radians(ad_location.latitude)))
+//                                 ) AS distance
+//                             )`),
+//               "distance",
+//             ],
+//           ],
+//         },
+//         include: [
+//           { model: User, as: "user" },
+//           { model: AdImage, as: "ad_images" },
+//           {
+//             model: AdPriceDetails,
+//             as: "ad_price_details",
+//             // where: {
+//             //     ...(min_price !== null ? { rent_price: { [Op.gte]: Number(min_price) } } : {}),
+//             //     ...(max_price !== null ? { rent_price: { ...(min_price !== null ? { [Op.gte]: Number(min_price), [Op.lte]: Number(max_price) } : { [Op.lte]: Number(max_price) }) } } : {})
+//             // },
+//           },
+//         ],
+//         order: [[sequelize.literal("distance"), "ASC"]],
+//         distinct: true,
+//         limit: perPage,
+//         offset: offset,
+//       };
+//       if (category) adsQuery.where.category = category;
+//       if (keyword) {
+//         adsQuery.where = {
+//           ...adsQuery.where,
+//           [Op.or]: [
+//             { category: { [Op.like]: `%${keyword}%` } },
+//             { title: { [Op.like]: `%${keyword}%` } },
+//             { description: { [Op.like]: `%${keyword}%` } },
+//           ],
+//         };
+//       }
+//       if (location_type === "locality" || location_type === "place") {
+//         adsQuery.include.push({
+//           model: AdLocation,
+//           as: "ad_location",
+//           where: {
+//             [Op.or]: [{ locality: location }, { place: location }],
+//           },
+//         });
+//       } else {
+//         adsQuery.include.push({
+//           model: AdLocation,
+//           as: "ad_location",
+//           where: {
+//             [Op.or]: [{ state: location }, { country: location }],
+//           },
+//         });
+//       }
+//     }
+//     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
+
+//     const userId = user_id;
+//     let wishListAdIds;
+//     if (userId) {
+//       const wishLists = await AdWishLists.findAll({
+//         where: { user_id: userId },
+//         attributes: ["ad_id"],
+//       });
+//       wishListAdIds = wishLists.map((wishList) => wishList.ad_id);
+//       ads.map((ad) => {
+//         ad.wishListed = wishListAdIds.includes(ad.ad_id);
+//         if (ad.user) {
+//           ad.user = ad.user.toJSON();
+//           delete ad.user.token;
+//         }
+//       });
+//     }
+//     const formattedAds = await Promise.all(
+//       ads.map((ad) => formatAd(ad, { userId: user_id, wishListAdIds })),
+//     );
+//     const fullUrl = `${req.protocol}://${req.get("host")}${
+//       req.originalUrl.split("?")[0]
+//     }`;
+//     response = {
+//       pagination: formatPagination({
+//         page: Number(page),
+//         perPage,
+//         total: count,
+//         path: fullUrl,
+//       }),
+//       data: formattedAds,
+//     };
+//     // res.status(responseStatusCodes.success).json(response);
+//     return res.success(responseMessages.rentCategoryPosts, response);
+//   } catch (error) {
+//     // res
+//     //   .status(responseStatusCodes.internalServerError)
+//     //   .json({ message: responseMessages.internalServerError });
+//     return next(error);
+//   }
+// };
 
 exports.rentCategoryPosts = async (req, res, next) => {
   try {
@@ -1161,17 +1293,22 @@ exports.rentCategoryPosts = async (req, res, next) => {
     const [blockedUserIds, wishListAdIds] = await Promise.all([
       user_id
         ? BlockedUser.findAll({
-            where: { [Op.or]: [{ blocker_id: user_id }, { blocked_id: user_id }] },
+            where: {
+              [Op.or]: [{ blocker_id: user_id }, { blocked_id: user_id }],
+            },
             raw: true,
           }).then((records) =>
-            records.map((r) => (r.blocker_id !== user_id ? r.blocked_id : r.blocker_id))
+            records.map((r) =>
+              r.blocker_id !== user_id ? r.blocked_id : r.blocker_id,
+            ),
           )
         : Promise.resolve([]),
 
       user_id
-        ? AdWishLists.findAll({ where: { user_id }, attributes: ["ad_id"] }).then((wl) =>
-            wl.map((w) => w.ad_id)
-          )
+        ? AdWishLists.findAll({
+            where: { user_id },
+            attributes: ["ad_id"],
+          }).then((wl) => wl.map((w) => w.ad_id))
         : Promise.resolve([]),
 
       // Fire-and-forget user search log
@@ -1218,7 +1355,10 @@ exports.rentCategoryPosts = async (req, res, next) => {
 
     // ── Handle keyword = ad_id shortcut ────────────────────
     if (keyword && !isNaN(Number(keyword))) {
-      const adExists = await Ad.findOne({ where: { ad_id: Number(keyword) }, attributes: ["ad_id"] });
+      const adExists = await Ad.findOne({
+        where: { ad_id: Number(keyword) },
+        attributes: ["ad_id"],
+      });
       if (adExists) {
         const { count, rows: ads } = await Ad.findAndCountAll({
           where: { ad_id: Number(keyword), ad_stage: 3 },
@@ -1228,7 +1368,9 @@ exports.rentCategoryPosts = async (req, res, next) => {
           offset,
         });
 
-        const formattedAds = ads.map((ad) => formatAd(ad, { userId: user_id, wishListAdIds }));
+        const formattedAds = ads.map((ad) =>
+          formatAd(ad, { userId: user_id, wishListAdIds }),
+        );
         return res.success(responseMessages.rentCategoryPosts, {
           totalCount: count,
           data: formattedAds,
@@ -1287,7 +1429,9 @@ exports.rentCategoryPosts = async (req, res, next) => {
     // ── Execute ─────────────────────────────────────────────
     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
 
-    const formattedAds = ads.map((ad) => formatAd(ad, { userId: user_id, wishListAdIds }));
+    const formattedAds = ads.map((ad) =>
+      formatAd(ad, { userId: user_id, wishListAdIds }),
+    );
 
     return res.success(responseMessages.rentCategoryPosts, {
       totalCount: count,
@@ -1512,7 +1656,7 @@ exports.bestServiceProviders = async (req, res, next) => {
     const formattedAds = ads.map((ad) => formatAd(ad, { userId }));
 
     return res.success(responseMessages.bestServiceProviders, {
-     totalCount: count,
+      totalCount: count,
       data: formattedAds,
     });
   } catch (error) {

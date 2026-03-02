@@ -53,61 +53,49 @@ async function savePlace(places) {
   }
 }
 
+const PLACE_TYPE_MAP = { region: "state", neighborhood: "locality" };
+const CTX_KEY_MAP = { street: "street", locality: "locality", place: "place", district: "district", region: "state", country: "country" };
+
 exports.getPlace = async (req, res, next) => {
-  const { longitude, latitude } = req.body;
+  const { longitude, latitude } = req.query;
+
   try {
     const response = await axios.get(
       `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json`,
-      {
-        params: {
-          access_token: mapBoxToken,
-        },
-      }
+      { params: { access_token: mapBoxToken } }
     );
+
     const places = response.data.features;
-    if (places.length > 0) {
-      const results = places
-        .map((feature) => {
-          const data = {};
-          if (feature.properties) {
-            const property = feature.properties;
-            const context = feature.context || [];
-            const placeType = feature.place_type[0];
-            data.type =
-              placeType === "region"
-                ? "state"
-                : placeType === "neighborhood"
-                ? "locality"
-                : placeType;
-            data.name = feature.text || property.name;
-            context.forEach((ctx) => {
-              if (ctx.id.includes("street")) data.street = ctx.text;
-              if (ctx.id.includes("locality")) data.locality = ctx.text;
-              if (ctx.id.includes("place")) data.place = ctx.text;
-              if (ctx.id.includes("district")) data.district = ctx.text;
-              if (ctx.id.includes("region")) data.state = ctx.text;
-              if (ctx.id.includes("country")) data.country = ctx.text;
-            });
-            if (feature.geometry && placeType !== "street") {
-              data.latitude = feature.geometry.coordinates[1];
-              data.longitude = feature.geometry.coordinates[0];
-            }
-            return data;
-          }
-        })
-        .filter(Boolean);
-      await savePlace(results);
-      // return res.status(responseStatusCodes.success).json(results[0]);
-      return res.success(responseMessages.loactionDataFetched, results[0]);
+
+    if (!places.length) {
+      return res.success(responseMessages.locationNotFound, null, responseStatusCodes.notFound);
     }
-    // return res.status(responseStatusCodes.notFound).json({ message: responseMessages.locationNotFound });
-    return res.success(
-      responseMessages.locationNotFound,
-      null,
-      responseStatusCodes.notFound
-    );
+
+    const results = places.map((feature) => {
+      const placeType = feature.place_type[0];
+      const context = feature.context || [];
+      const data = {
+        type: PLACE_TYPE_MAP[placeType] ?? placeType,
+        name: feature.text || feature.properties?.name,
+      };
+
+      context.forEach((ctx) => {
+        const key = Object.keys(CTX_KEY_MAP).find((k) => ctx.id.includes(k));
+        if (key) data[CTX_KEY_MAP[key]] = ctx.text;
+      });
+
+      if (feature.geometry && placeType !== "street") {
+        data.latitude = feature.geometry.coordinates[1];
+        data.longitude = feature.geometry.coordinates[0];
+      }
+
+      return data;
+    });
+
+    await savePlace(results).catch((err) => logger.error("savePlace failed", err));
+
+    return res.success(responseMessages.loactionDataFetched, results[0]);
   } catch (error) {
-    // return res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError, error });
     return next(error);
   }
 };

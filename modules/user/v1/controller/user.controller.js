@@ -76,151 +76,277 @@ const sendSangamamOtp = async (mobile, otp) => {
   return await sendCurl(url);
 };
 
+// exports.createUser = async (req, res, next) => {
+//   const { name, uuid, mobile, email, referralCode } = req.body;
+//   if (!mobile && !email) {
+//     return res.error(responseMessages.invalidRequest);
+//     // return res.status(responseStatusCodes.badRequest).json({ message: responseMessages.invalidRequest });
+//   }
+//   if (!name || !uuid) {
+//     return res.error(responseMessages.invalidRequest);
+//     // return res.status(responseStatusCodes.badRequest).json({ message: responseMessages.invalidRequest });
+//   }
+//   try {
+//     let user;
+//     if (email) {
+//       user = await User.findOne({
+//         where: { email: email },
+//         include: [
+//           {
+//             model: ReferralCode,
+//             as: "referral_code",
+//             attributes: ["referral_code"],
+//           },
+//         ],
+//       });
+//       if (user) {
+//         if (!user.referral_code) {
+//           const newCode = generateReferralCode();
+//           await ReferralCode.create({
+//             user_id: user.user_id,
+//             referral_code: newCode,
+//           });
+//           user.referral_code = { referral_code: newCode };
+//         }
+//         let profileUrl;
+//         if (user.profile) {
+//           profileUrl = getImageUrlPublic(user.profile);
+//         }
+//         const token = jwt.sign(
+//           { id: user.user_id },
+//           process.env.ACCESS_TOKEN_SECRET,
+//         );
+//         await user.save();
+
+//         // return res.status(responseStatusCodes.success).json({
+//         //     success: true,
+//         //     message: responseMessages.userLogged,
+//         //     data: {
+//         //         user_id:user.user_id,
+//         //         name:user.name,
+//         //         token: token,
+//         //         profile: profileUrl,
+//         //         mobile_number: user.mobile_number,
+//         //         email:user.email,
+//         //         referral_code: user.referral_code?.referral_code || '',
+//         //         description:user.description,
+//         //         is_admin: user.is_admin
+//         //     }
+//         // });
+//         return res.success(responseMessages.userLogged, {
+//           user_id: user.user_id,
+//           name: user.name,
+//           token: token,
+//           profile: profileUrl,
+//           mobile_number: user.mobile_number,
+//           email: user.email,
+//           referral_code: user.referral_code?.referral_code || "",
+//           description: user.description,
+//           is_admin: user.is_admin,
+//         });
+//       } else {
+//         user = new User({
+//           name,
+//           user_id: generateUserId(),
+//           email,
+//           email_uid: uuid,
+//         });
+//         await user.save();
+//         const token = jwt.sign(
+//           { id: user.user_id },
+//           process.env.ACCESS_TOKEN_SECRET,
+//         );
+//         let newReferralCode = generateReferralCode();
+//         await ReferralCode.create({
+//           user_id: user.user_id,
+//           referral_code: newReferralCode,
+//         });
+//         if (referralCode && referralCode !== "") {
+//           const referralOwner = await ReferralCode.findOne({
+//             where: { referral_code: referralCode },
+//           });
+//           const referrerId = referralOwner.user_id;
+//           if (referrerId === user.user_id) {
+//             return res
+//               .status(responseStatusCodes.badRequest)
+//               .json({ message: responseMessages.referralError });
+//           }
+//           if (referralOwner) {
+//             const referredUserId = referralOwner.user_id;
+//             const loginUserId = user.user_id;
+//             const existingRef = await ReferralCodeLogin.findOne({
+//               where: { login_id: loginUserId },
+//             });
+
+//             if (!existingRef) {
+//               await ReferralCodeLogin.create({
+//                 refered_id: referredUserId,
+//                 login_id: loginUserId,
+//               });
+//             }
+//           }
+//         }
+//         // return res.status(responseStatusCodes.success).json({
+//         //   success: true,
+//         //   message: responseMessages.userLogged,
+//         //   data: {
+//         //     user_id: user.user_id,
+//         //     name: user.name,
+//         //     token: token,
+//         //     profile: user.profile,
+//         //     mobile_number: user.mobile_number,
+//         //     email: user.email,
+//         //     referral_code: newReferralCode,
+//         //     description: user.description,
+//         //     is_admin: user.is_admin,
+//         //   },
+//         // });
+//         return res.success(responseMessages.userLogged, {
+//           user_id: user.user_id,
+//           name: user.name,
+//           token: token,
+//           profile: user.profile,
+//           mobile_number: user.mobile_number,
+//           email: user.email,
+//           referral_code: newReferralCode,
+//           description: user.description,
+//           is_admin: user.is_admin,
+//         });
+//       }
+//     }
+//   } catch (error) {
+//     // return res
+//     //   .status(responseStatusCodes.internalServerError)
+//     //   .json({ message: responseMessages.internalServerError, error });
+//     return next(error);
+//   }
+// };
+
+
+// Helper to build user response payload
+const buildUserPayload = (user, token, referralCode, profileUrl = null) => ({
+  user_id: user.user_id,
+  name: user.name,
+  token,
+  profile: profileUrl ?? user.profile ?? null,
+  mobile_number: user.mobile_number,
+  email: user.email,
+  referral_code: referralCode || "",
+  description: user.description,
+  is_admin: user.is_admin,
+});
+
 exports.createUser = async (req, res, next) => {
   const { name, uuid, mobile, email, referralCode } = req.body;
-  if (!mobile && !email) {
+
+  // Input validation
+  if (!name || !uuid || (!mobile && !email)) {
     return res.error(responseMessages.invalidRequest);
-    // return res.status(responseStatusCodes.badRequest).json({ message: responseMessages.invalidRequest });
   }
-  if (!name || !uuid) {
+
+  // Currently only email flow is handled — return early if no email
+  if (!email) {
     return res.error(responseMessages.invalidRequest);
-    // return res.status(responseStatusCodes.badRequest).json({ message: responseMessages.invalidRequest });
   }
+
   try {
-    let user;
-    if (email) {
-      user = await User.findOne({
-        where: { email: email },
-        include: [
-          {
-            model: ReferralCode,
-            as: "referral_code",
-            attributes: ["referral_code"],
-          },
-        ],
-      });
-      if (user) {
-        if (!user.referral_code) {
-          const newCode = generateReferralCode();
-          await ReferralCode.create({
-            user_id: user.user_id,
-            referral_code: newCode,
-          });
-          user.referral_code = { referral_code: newCode };
-        }
-        let profileUrl;
-        if (user.profile) {
-          profileUrl = getImageUrlPublic(user.profile);
-        }
-        const token = jwt.sign(
-          { id: user.user_id },
-          process.env.ACCESS_TOKEN_SECRET,
-        );
-        await user.save();
+    const existingUser = await User.findOne({
+      where: { email },
+      include: [
+        {
+          model: ReferralCode,
+          as: "referral_code",
+          attributes: ["referral_code"],
+        },
+      ],
+    });
 
-        // return res.status(responseStatusCodes.success).json({
-        //     success: true,
-        //     message: responseMessages.userLogged,
-        //     data: {
-        //         user_id:user.user_id,
-        //         name:user.name,
-        //         token: token,
-        //         profile: profileUrl,
-        //         mobile_number: user.mobile_number,
-        //         email:user.email,
-        //         referral_code: user.referral_code?.referral_code || '',
-        //         description:user.description,
-        //         is_admin: user.is_admin
-        //     }
-        // });
-        return res.success(responseMessages.userLogged, {
-          user_id: user.user_id,
-          name: user.name,
-          token: token,
-          profile: profileUrl,
-          mobile_number: user.mobile_number,
-          email: user.email,
-          referral_code: user.referral_code?.referral_code || "",
-          description: user.description,
-          is_admin: user.is_admin,
-        });
-      } else {
-        user = new User({
-          name,
-          user_id: generateUserId(),
-          email,
-          email_uid: uuid,
-        });
-        await user.save();
-        const token = jwt.sign(
-          { id: user.user_id },
-          process.env.ACCESS_TOKEN_SECRET,
-        );
-        let newReferralCode = generateReferralCode();
+    // ── EXISTING USER ────────────────────────────────────────────────
+    if (existingUser) {
+      // Lazily create referral code if missing
+      if (!existingUser.referral_code) {
+        const newCode = generateReferralCode();
         await ReferralCode.create({
-          user_id: user.user_id,
-          referral_code: newReferralCode,
+          user_id: existingUser.user_id,
+          referral_code: newCode,
         });
-        if (referralCode && referralCode !== "") {
-          const referralOwner = await ReferralCode.findOne({
-            where: { referral_code: referralCode },
-          });
-          const referrerId = referralOwner.user_id;
-          if (referrerId === user.user_id) {
-            return res
-              .status(responseStatusCodes.badRequest)
-              .json({ message: responseMessages.referralError });
-          }
-          if (referralOwner) {
-            const referredUserId = referralOwner.user_id;
-            const loginUserId = user.user_id;
-            const existingRef = await ReferralCodeLogin.findOne({
-              where: { login_id: loginUserId },
-            });
+        existingUser.referral_code = { referral_code: newCode };
+      }
 
-            if (!existingRef) {
-              await ReferralCodeLogin.create({
-                refered_id: referredUserId,
-                login_id: loginUserId,
-              });
-            }
-          }
-        }
-        // return res.status(responseStatusCodes.success).json({
-        //   success: true,
-        //   message: responseMessages.userLogged,
-        //   data: {
-        //     user_id: user.user_id,
-        //     name: user.name,
-        //     token: token,
-        //     profile: user.profile,
-        //     mobile_number: user.mobile_number,
-        //     email: user.email,
-        //     referral_code: newReferralCode,
-        //     description: user.description,
-        //     is_admin: user.is_admin,
-        //   },
-        // });
-        return res.success(responseMessages.userLogged, {
-          user_id: user.user_id,
-          name: user.name,
-          token: token,
-          profile: user.profile,
-          mobile_number: user.mobile_number,
-          email: user.email,
-          referral_code: newReferralCode,
-          description: user.description,
-          is_admin: user.is_admin,
+      const profileUrl = existingUser.profile
+        ? getImageUrlPublic(existingUser.profile)
+        : null;
+
+      const token = jwt.sign(
+        { id: existingUser.user_id },
+        process.env.ACCESS_TOKEN_SECRET
+      );
+
+      await existingUser.save();
+
+      return res.success(
+        responseMessages.userLogged,
+        buildUserPayload(
+          existingUser,
+          token,
+          existingUser.referral_code?.referral_code,
+          profileUrl
+        )
+      );
+    }
+
+    // ── NEW USER ─────────────────────────────────────────────────────
+    const newUser = await User.create({
+      name,
+      user_id: generateUserId(),
+      email,
+      email_uid: uuid,
+    });
+
+    const [token, newReferralCode] = await Promise.all([
+      jwt.sign({ id: newUser.user_id }, process.env.ACCESS_TOKEN_SECRET),
+      (async () => {
+        const code = generateReferralCode();
+        await ReferralCode.create({ user_id: newUser.user_id, referral_code: code });
+        return code;
+      })(),
+    ]);
+
+    // Handle referral code attribution
+    if (referralCode) {
+      const referralOwner = await ReferralCode.findOne({
+        where: { referral_code: referralCode },
+      });
+
+      if (!referralOwner) {
+        return res.error(responseMessages.referralError, responseStatusCodes.badRequest);
+      }
+
+      if (referralOwner.user_id === newUser.user_id) {
+        return res.error(responseMessages.referralError, responseStatusCodes.badRequest);
+      }
+
+      const alreadyReferred = await ReferralCodeLogin.findOne({
+        where: { login_id: newUser.user_id },
+      });
+
+      if (!alreadyReferred) {
+        await ReferralCodeLogin.create({
+          refered_id: referralOwner.user_id,
+          login_id: newUser.user_id,
         });
       }
     }
+
+    return res.success(
+      responseMessages.userLogged,
+      buildUserPayload(newUser, token, newReferralCode)
+    );
   } catch (error) {
-    // return res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError, error });
     return next(error);
   }
 };
+
 
 exports.addReferralLogin = async (req, res, next) => {
   try {
@@ -639,54 +765,52 @@ exports.deleteAccount = async (req, res, next) => {
   const { user_id } = req.query;
 
   if (!user_id) {
-    // return res
-    //   .status(responseStatusCodes.badRequest)
-    //   .json({ success: false, message: responseMessages.invalidRequest });
     return res.error(responseMessages.invalidRequest);
   }
 
   try {
-    const ads = await Ad.findAll({ where: { user_id: user_id } });
-    for (const ad of ads) {
-      await AdImage.destroy({ where: { ad_id: ad.ad_id } });
-      await AdLocation.destroy({ where: { ad_id: ad.ad_id } });
-      await AdPriceDetails.destroy({ where: { ad_id: ad.ad_id } });
-      await AdWishLists.destroy({ where: { ad_id: ad.ad_id } });
-      await AdView.destroy({ where: { ad_id: ad.ad_id } });
-    }
-    await Ad.destroy({ where: { user_id } });
-
-    await ChatMessage.destroy({
-      where: {
-        [Op.or]: [{ sender_id: user_id }, { reciever_id: user_id }],
-      },
-    });
-    await ChatRoom.destroy({
-      where: {
-        [Op.or]: [{ user1: user_id }, { user2: user_id }],
-      },
-    });
-    await ContactView.destroy({
-      where: {
-        [Op.or]: [{ user_id: user_id }, { viewer_id: user_id }],
-      },
-    });
-    await UserSearch.destroy({ where: { user_id: user_id } });
-    const deletedUser = await User.destroy({ where: { user_id: user_id } });
-    if (!deletedUser) {
-      //   return res
-      //     .status(responseStatusCodes.badRequest)
-      //     .json({ success: false, message: responseMessages.userNotFound });
+    // Verify user exists before doing any deletions
+    const user = await User.findOne({ where: { user_id } });
+    if (!user) {
       return res.error(responseMessages.userNotFound);
     }
-    // return res
-    //   .status(responseStatusCodes.success)
-    //   .json({ success: true, message: responseMessages.userDeleted });
+
+    // Get all ad IDs for this user in one query
+    const adIds = (await Ad.findAll({
+      where: { user_id },
+      attributes: ["ad_id"],
+    })).map((ad) => ad.ad_id);
+
+    // Delete all ad-related records in parallel
+    if (adIds.length) {
+      await Promise.all([
+        AdImage.destroy({ where: { ad_id: adIds } }),
+        AdLocation.destroy({ where: { ad_id: adIds } }),
+        AdPriceDetails.destroy({ where: { ad_id: adIds } }),
+        AdWishLists.destroy({ where: { ad_id: adIds } }),
+        AdView.destroy({ where: { ad_id: adIds } }),
+      ]);
+    }
+
+    // Delete all user-related records in parallel
+    await Promise.all([
+      Ad.destroy({ where: { user_id } }),
+      ChatMessage.destroy({
+        where: { [Op.or]: [{ sender_id: user_id }, { reciever_id: user_id }] },
+      }),
+      ChatRoom.destroy({
+        where: { [Op.or]: [{ user1: user_id }, { user2: user_id }] },
+      }),
+      ContactView.destroy({
+        where: { [Op.or]: [{ user_id }, { viewer_id: user_id }] },
+      }),
+      UserSearch.destroy({ where: { user_id } }),
+    ]);
+
+    await User.destroy({ where: { user_id } });
+
     return res.success(responseMessages.userDeleted);
   } catch (error) {
-    // return res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ success: false, message: responseMessages.internalServerError });
     return next(error);
   }
 };

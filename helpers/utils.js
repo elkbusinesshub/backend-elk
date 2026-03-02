@@ -6,8 +6,8 @@ const {
   DeleteObjectCommand,
 } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
-const { Op, literal } = require('sequelize');
-const sharp = require('sharp');
+const { Op, literal } = require("sequelize");
+const sharp = require("sharp");
 
 require("dotenv").config();
 
@@ -15,7 +15,7 @@ const createErrorResponse = (
   message,
   data,
   statusCode = responseStatusCodes.badRequest,
-  success = false
+  success = false,
 ) => {
   return { success, statusCode, message, data };
 };
@@ -24,7 +24,7 @@ const createSuccessResponse = (
   message,
   data,
   statusCode = responseStatusCodes.success,
-  success = true
+  success = true,
 ) => {
   return { success, statusCode, message, data };
 };
@@ -37,7 +37,7 @@ const globalResponseHandler = (req, res, next) => {
         .status(statusCode || responseStatusCodes.success)
         .json(createSuccessResponse(message, data, statusCode));
 
-    res.error = (message, data, statusCode = responseStatusCodes.badRequest ) =>
+    res.error = (message, data, statusCode = responseStatusCodes.badRequest) =>
       res
         .status(statusCode || responseStatusCodes.badRequest)
         .json(createErrorResponse(message, data, statusCode));
@@ -55,7 +55,9 @@ const unknownRouteHandler = (req, res) =>
 const globalErrorHandler = (err, req, res, next) =>
   res
     .status(responseStatusCodes.internalServerError)
-    .json(createErrorResponse(err?.message || responseMessages.somethingwentWrong));
+    .json(
+      createErrorResponse(err?.message || responseMessages.somethingwentWrong),
+    );
 
 const unhandledErrorHandler = (error) => {
   console.log("====== Unhandled Error ====");
@@ -74,24 +76,23 @@ const s3 = new S3Client({
   },
 });
 
-
 async function uploadToS3(file, fileName) {
   try {
     let fileBuffer = file.buffer;
     let contentType = file.mimetype;
-    const isImage = file.mimetype.startsWith('image/');
+    const isImage = file.mimetype.startsWith("image/");
 
     if (isImage) {
       const sharpInstance = sharp(file.buffer).resize(800, 600, {
-        fit: 'inside',
+        fit: "inside",
         withoutEnlargement: true,
       });
 
-      if (file.mimetype === 'image/jpeg') {
+      if (file.mimetype === "image/jpeg") {
         fileBuffer = await sharpInstance
           .jpeg({ quality: 75, progressive: false, mozjpeg: true })
           .toBuffer();
-      } else if (file.mimetype === 'image/png') {
+      } else if (file.mimetype === "image/png") {
         fileBuffer = await sharpInstance
           .png({ compressionLevel: 8, progressive: false })
           .toBuffer();
@@ -111,7 +112,7 @@ async function uploadToS3(file, fileName) {
     await s3.send(command);
     return { success: true, finalFilename: fileName };
   } catch (error) {
-    console.error('S3 upload error:', error);
+    console.error("S3 upload error:", error);
     return { success: false, finalFilename: null };
   }
 }
@@ -259,13 +260,15 @@ function formatAd(ad, options = {}) {
             email: ad.user.email,
             email_uid: ad.user.email_uid,
             mobile_number: ad.user.mobile_number,
-            profile: ad.user.profile ? getImageUrlPublic(ad.user.profile) : null,
+            profile: ad.user.profile
+              ? getImageUrlPublic(ad.user.profile)
+              : null,
             description: ad.user.description,
             notification_token: ad.user.notification_token,
           }
         : undefined,
     ad_images: ad.ad_images
-      ? ad.ad_images.map((image) => ({ 
+      ? ad.ad_images.map((image) => ({
           id: image.id,
           ad_id: image.ad_id,
           image: image.image ? getImageUrlPublic(image.image) : null,
@@ -339,18 +342,12 @@ function formatPagination({ page, perPage, total, path }) {
   };
 }
 
-// utils/distance.util.js
-
-
-/**
- * Calculate distance between two coordinates using Haversine formula
- */
 function getDistanceCalculation(lat, lng) {
   const safeLat = parseFloat(lat);
   const safeLng = parseFloat(lng);
-  
+
   if (isNaN(safeLat) || isNaN(safeLng)) {
-    throw new Error('Invalid coordinates for distance calculation');
+    throw new Error("Invalid coordinates for distance calculation");
   }
 
   return literal(`(
@@ -370,6 +367,86 @@ function buildLocationWhere(location_type, location) {
     : { [Op.or]: [{ state: location }, { country: location }] };
 }
 
+const generateUserId = () => {
+  const timestamp = Date.now();
+  const randomNum = Math.floor(Math.random() * 1000);
+  const userId = `${timestamp}${randomNum}`;
+  return parseInt(userId);
+};
+
+function generateAdId() {
+  const timestamp = Date.now();
+  const randomNum = Math.floor(Math.random() * 1000);
+  const userId = `${timestamp}${randomNum}`;
+  return parseInt(userId);
+}
+
+function generateRoomId() {
+  const timestamp = Date.now();
+  const randomNum = Math.floor(Math.random() * 1000);
+  const userId = `${timestamp}${randomNum}`;
+  return parseInt(userId);
+}
+
+function generateAdId() {
+  const timestamp = Date.now();
+  const randomNum = Math.floor(Math.random() * 1000);
+  const userId = `${timestamp}${randomNum}`;
+  return parseInt(userId);
+}
+
+function escapeXml(unsafe) {
+  return String(unsafe)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function logoBufferHeightRatio(_buf) {
+  return 0.35;
+}
+// Extracted helper — generates a placeholder image when no files are uploaded
+const generatePlaceholderImage = async (ad, width = 800, height = 400) => {
+    const logoPath = path.join(__dirname, '../../../../assets/logo2.png');
+
+    const logoBuffer = await sharp(logoPath)
+        .resize(Math.round(width * 0.7))
+        .png()
+        .toBuffer();
+
+    const logoBase64 = logoBuffer.toString('base64');
+    const nameText = escapeXml(ad.title || 'Ad');
+
+    const textSvg = `
+        <svg width="${width}" height="${height}">
+            <rect width="100%" height="100%" fill="white"/>
+            <style>
+                .title { font-size: 110px; font-weight: 700; fill: #353333ff; text-anchor: middle; dominant-baseline: middle; }
+            </style>
+            <text x="50%" y="45%" class="title">${nameText}</text>
+        </svg>
+    `;
+
+    const logoSvg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+            <image
+                href="data:image/png;base64,${logoBase64}"
+                x="${(width - Math.round(width * 0.7)) / 2}"
+                y="${(height - Math.round(width * 0.7) * logoBufferHeightRatio(logoBuffer)) / 2}"
+                width="${Math.round(width * 0.7)}"
+                preserveAspectRatio="xMidYMid meet"
+                opacity="0.2"
+            />
+        </svg>
+    `;
+
+    return sharp(Buffer.from(textSvg))
+        .png()
+        .composite([{ input: Buffer.from(logoSvg), top: 0, left: 0 }])
+        .jpeg({ quality: 92 });
+};
+
 
 module.exports = {
   globalResponseHandler,
@@ -385,5 +462,10 @@ module.exports = {
   formatPagination,
   getImageUrlPublic,
   getDistanceCalculation,
-  buildLocationWhere
+  buildLocationWhere,
+  generateUserId,
+  generateAdId,
+  generateRoomId,
+  generateAdId,
+  generatePlaceholderImage
 };
