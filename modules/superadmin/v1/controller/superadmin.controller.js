@@ -1,0 +1,463 @@
+const { Op } = require("sequelize");
+const Ad = require("../../../../models/ad.model");
+const AdLocation = require("../../../../models/adLocation.model");
+const AdImage = require("../../../../models/adImage.model");
+const AdPriceDetails = require("../../../../models/adPriceDetails.model");
+const User = require("../../../../models/user.model");
+const AdViews = require("../../../../models/adView.model");
+const AdWishLists = require("../../../../models/adWishList.model");
+const { responseStatusCodes, responseMessages } = require("../../../../helpers/appConstants");
+const { getImageUrlPublic, deleteImageFromS3 } = require("../../../../helpers/utils");
+require("dotenv").config();
+const admin = require('../../../../helpers/firebase'); 
+const messaging = admin.messaging();
+const { getImageUrlPublic, uploadToS3 } = require("../../../../helpers/utils");
+
+const getAdminAds = async (req, res, next) => {
+    try {
+        const { date, location } = req.query;
+        let whereClause = {};
+        let locationClause = {};
+
+        if (date) {
+            const startDate = new Date(date);
+            startDate.setHours(0, 0, 0, 0);
+            const endDate = new Date(date);
+            endDate.setHours(23, 59, 59, 999);
+            whereClause.createdAt = { [Op.between]: [startDate, endDate] };
+        }
+
+        if (location) {
+            locationClause = {
+                [Op.or]: [
+                    { locality: { [Op.like]: `%${location}%` } },
+                    { place: { [Op.like]: `%${location}%` } },
+                    { district: { [Op.like]: `%${location}%` } },
+                    { state: { [Op.like]: `%${location}%` } },
+                    { country: { [Op.like]: `%${location}%` } }
+                ]
+            };
+        }
+
+        const ads = await Ad.findAll({
+            where: whereClause,
+            include: [
+                { model: User, as: 'user', attributes: ['id', 'name', 'email', 'mobile_number','profile'] },
+                { model: AdImage, as: 'ad_images', attributes: ['image'] },
+                { model: AdPriceDetails, as: 'ad_price_details', attributes: ['rent_price', 'rent_duration'] },
+                { model: AdLocation, as: 'ad_location', where: location ? locationClause : undefined, required: !!location }
+            ],
+            order: [['createdAt', 'DESC']]
+        });
+        const adsWithUrls = await Promise.all(ads.map(async (ad) => {
+            const adObj = ad.toJSON();
+            if (adObj.ad_images) {
+                adObj.ad_images = await Promise.all(adObj.ad_images.map(async (img) => ({
+                    ...img,
+                    image: getImageUrlPublic(img.image),
+                })));
+            }
+            if (adObj.user.profile) {
+                adObj.user.profile = getImageUrlPublic(adObj.user.profile);
+            }
+            return adObj;
+        }));
+        return res.success(responseMessages.adminAdsFetched,adsWithUrls);
+    } catch (error) {
+        return next(error);
+    }
+
+};
+
+const getAllUsers = async (req, res, next) => {
+    try {
+        const users = await User.findAll({});
+        const usersWithProfileUrls = await Promise.all(users.map(async (user) => {
+            const userObj = user.toJSON();
+            if (userObj.profile) {
+                userObj.profile = getImageUrlPublic(userObj.profile);
+            }
+            return userObj;
+        }));
+        return res.success(responseMessages.allUsersFetched, usersWithProfileUrls, responseStatusCodes.success);
+    } catch (error) {
+        return next(error);
+    }
+};
+
+const blockUserById = async (req, res, next) => {
+    try {
+        const { id } = req.query;
+        const user = await User.findOne({
+            where: {
+                user_id : id
+            }
+        });
+        if (!user) {
+            return res.error(responseMessages.userNotFound,null,responseStatusCodes.notFound);
+        }
+
+        user.block_status = !user.block_status;
+        await user.save();
+
+        return res.success(responseMessages.blockUser);
+    } catch (error) {
+        return next(error);
+    }
+};
+
+const deleteAdminAd = async (req, res, next) => {
+    try {
+        const { id } = req.query;
+
+        const ad = await Ad.findOne({ad_id:id}, {
+            include: [{ model: AdImage, as: 'ad_images' }]
+        });
+        if (!ad) {
+            return res.error(responseMessages.adNotFound, null, responseStatusCodes.notFound);
+        }
+        if (ad.ad_images && ad.ad_images.length > 0) {
+            await Promise.all(ad.ad_images.map(async (img) => {
+                await deleteImageFromS3(img.image);
+            }));
+        }
+        await AdImage.destroy({ where: { ad_id: id } });
+        await AdLocation.destroy({where: { ad_id: id } });
+        await AdPriceDetails.destroy({where: { ad_id: id } });
+        await AdViews.destroy({where: { ad_id: id } });
+        await AdWishLists.destroy({where: { ad_id: id } });
+        await Ad.destroy({ where: { ad_id: id } });
+        return res.success(responseMessages.adDeleted);
+    } catch (error) {
+        return next(error);
+    }
+};
+
+const getAllAdLocations = async (req, res, next) => {
+    try {
+        const adLocations = await AdLocation.findAll();
+        const uniquePlaces = Array.from(
+            new Set(
+                adLocations
+                    .flatMap(adLoc => [adLoc.dataValues.locality, adLoc.dataValues.place, adLoc.dataValues.district, adLoc.dataValues.state, adLoc.dataValues.country])
+                    .filter(Boolean)
+            )
+        );       
+        return res.success(responseMessages.adLocationsFetched,{ data: adLocations, list: uniquePlaces})
+    } catch (error) {
+        return next(error);
+    }
+};
+
+const makeUserAdmin = async (req, res, next) => {
+    try {
+        const { user_id, role } = req.body;
+        const user = await User.findOne({
+            where: { user_id }
+        });
+        if (!user) {
+            return res.error(
+                responseMessages.userNotFound,
+                null,
+                responseStatusCodes.notFound
+            );
+        }
+        await user.update({ role });
+        return res.success(
+            "User promoted to admin successfully",
+            {
+                user_id: user.user_id,
+                role: user.role
+            }
+        );
+    } catch (error) {
+        return next(error);
+    }
+};
+
+const getSalesUsers = async (req, res, next) => {
+    try {
+        const users = await User.findAll({
+            where: { role: "admin" }
+        });
+        const usersWithProfileUrls = await Promise.all(
+            users.map(async (user) => {
+                const userObj = user.toJSON();
+
+                if (userObj.profile) {
+                    userObj.profile = getImageUrlPublic(userObj.profile);
+                }
+
+                return userObj;
+            })
+        );
+        return res.success(
+            responseMessages.allUsersFetched,
+            usersWithProfileUrls,
+            responseStatusCodes.success
+        );
+    } catch (error) {
+        return next(error);
+    }
+};
+
+const getSalesUserById = async (req, res, next) => {
+    try {
+        const { id } = req.query;
+        const user = await User.findOne({
+            where: {
+                user_id: id,
+                role: "admin"
+            }
+        });
+        if (!user) {
+            return res.error(
+                responseMessages.userNotFound,
+                null,
+                responseStatusCodes.notFound
+            );
+        }
+        const userObj = user.toJSON();
+        if (userObj.profile) {
+            userObj.profile = getImageUrlPublic(userObj.profile);
+        }
+        const referrals = await ReferralCodeLogin.findAll({
+            where: { refered_id: user.user_id },
+            attributes: ["login_id"]
+        });
+        const referredUserIds = referrals.map((r) => r.login_id);
+        if (referredUserIds.length === 0) {
+            userObj.referred_ads = [];
+            userObj.referred_users = [];
+            return res.success(
+                responseMessages.userFetched,
+                userObj,
+                responseStatusCodes.success
+            );
+        }
+        const ads = await Ad.findAll({
+            where: {
+                user_id: referredUserIds
+            },
+            include: [
+                {
+                    model: User,
+                    as: "user",
+                    attributes: ["id", "name", "profile", "createdAt"]
+                },
+                { model: AdImage, as: "ad_images" },
+                { model: AdPriceDetails, as: "ad_price_details" },
+                { model: AdLocation, as: "ad_location" }
+            ],
+            order: [["createdAt", "DESC"]]
+        });
+        const adsWithImageUrls = await Promise.all(
+            ads.map(async (ad) => {
+                const adObj = ad.toJSON();
+                if (adObj.ad_images?.length > 0) {
+                    adObj.ad_images = await Promise.all(
+                        adObj.ad_images.map(async (img) => ({
+                            ...img,
+                            image: img.image ? getImageUrlPublic(img.image) : null
+                        }))
+                    );
+                }
+                if (adObj.user?.profile) {
+                    adObj.user.profile = getImageUrlPublic(adObj.user.profile);
+                }
+                return adObj;
+            })
+        );
+        userObj.referred_ads = adsWithImageUrls;
+        const referredUsers = await User.findAll({
+            where: {
+                user_id: referredUserIds
+            }
+        });
+        const referredUsersWithDetails = await Promise.all(
+            referredUsers.map(async (refUser) => {
+                const refObj = refUser.toJSON();
+                if (refObj.profile) {
+                    refObj.profile = getImageUrlPublic(refObj.profile);
+                }
+                return refObj;
+            })
+        );
+        userObj.referred_users = referredUsersWithDetails;
+        return res.success(
+            responseMessages.userFetched,
+            userObj,
+            responseStatusCodes.success
+        );
+    } catch (error) {
+        return next(error);
+    }
+};
+
+const updateAd = async (req, res, next) => {
+    try {
+
+        const { id, title, description } = req.body;
+        let { ad_price_details } = req.body;
+
+        const ad = await Ad.findOne({
+            where: { id }
+        });
+
+        if (!ad) {
+            return res.error(
+                responseMessages.adNotFound,
+                null,
+                responseStatusCodes.notFound
+            );
+        }
+
+        await ad.update({
+            title,
+            description
+        });
+
+        let parsedPrices = [];
+
+        if (ad_price_details) {
+            parsedPrices =
+                typeof ad_price_details === "string"
+                    ? JSON.parse(ad_price_details)
+                    : ad_price_details;
+        }
+
+        if (Array.isArray(parsedPrices)) {
+
+            if (parsedPrices.length <= 0) {
+
+                await AdPriceDetails.destroy({
+                    where: { ad_id: ad.ad_id }
+                });
+
+            } else {
+
+                for (const price of parsedPrices) {
+
+                    if (price.id) {
+
+                        await AdPriceDetails.update(
+                            {
+                                rent_price: price.price,
+                                rent_duration: price.unit
+                            },
+                            {
+                                where: { id: price.id }
+                            }
+                        );
+
+                    } else {
+
+                        await AdPriceDetails.create({
+                            ad_id: ad.ad_id,
+                            rent_price: price.price,
+                            rent_duration: price.unit
+                        });
+
+                    }
+
+                }
+
+            }
+
+        }
+
+        if (req.files && req.files.length > 0) {
+
+            const uploadedImages = [];
+
+            for (const file of req.files) {
+
+                const fileName = `ads/${Date.now()}-${file.originalname}`;
+
+                await uploadToS3(file.buffer, fileName, file.mimetype);
+
+                uploadedImages.push({
+                    ad_id: ad.ad_id,
+                    image: fileName
+                });
+
+            }
+
+            await AdImage.bulkCreate(uploadedImages);
+
+        }
+
+        return res.success(
+            "Ad updated successfully",
+            null,
+            responseStatusCodes.success
+        );
+
+    } catch (error) {
+        return next(error);
+    }
+};
+
+const getAdById = async (req, res, next) => {
+    try {
+
+        const { id } = req.query;
+
+        const ad = await Ad.findOne({
+            where: { id },
+            include: [
+                {
+                    model: User,
+                    as: "user",
+                    attributes: ["id", "name", "email", "mobile_number", "profile"]
+                },
+                { model: AdImage, as: "ad_images", attributes: ["id", "image"] },
+                {
+                    model: AdPriceDetails,
+                    as: "ad_price_details",
+                    attributes: ["id", "rent_price", "rent_duration"]
+                },
+                {
+                    model: AdLocation,
+                    as: "ad_location"
+                }
+            ]
+        });
+
+        if (!ad) {
+            return res.error(
+                responseMessages.adNotFound,
+                null,
+                responseStatusCodes.notFound
+            );
+        }
+
+        const adObj = ad.toJSON();
+
+        if (adObj.ad_images) {
+
+            adObj.ad_images = await Promise.all(
+                adObj.ad_images.map(async (img) => ({
+                    ...img,
+                    image: getImageUrlPublic(img.image)
+                }))
+            );
+
+        }
+
+        if (adObj.user?.profile) {
+            adObj.user.profile = getImageUrlPublic(adObj.user.profile);
+        }
+
+        return res.success(
+            responseMessages.adFetched,
+            adObj,
+            responseStatusCodes.success
+        );
+
+    } catch (error) {
+        return next(error);
+    }
+};
+
+module.exports = { getAdminAds, deleteAdminAd, getAllAdLocations, getAllUsers, blockUserById, makeUserAdmin, getSalesUsers, getSalesUserById, getAdById, updateAd };
