@@ -2,31 +2,24 @@ const express = require('express');
 const router = express.Router();
 const adminController = require("./controller/admin.controller");
 const validation = require('./validation/admin.validation');
+const multer = require("multer");
+const upload = multer();
 
-
+router.post(
+  '/admin-ad-create',
+  upload.any(),
+  validation.createUserAdAdminValidation,
+  adminController.createUserAdAdmin
+);
 
 router.get(
-  "/get-admin-ads",
-  validation.getAdminAdsValidation,
-  adminController.getAdminAds
+  '/get_sales_ads',
+  adminController.getSalesAds
 );
-router.delete(
-  "/delete-ad",
- validation.deleteAdminAdValidation,
-  adminController.deleteAdminAd
-);
+
 router.get(
-  "/get-ad-locations",
-  adminController.getAllAdLocations
-);
-router.get(
-  "/get-users",
-  adminController.getAllUsers
-); 
-router.put(
-  "/block_user",
-  validation.blockUserByIdValidation,
-  adminController.blockUserById
+  '/get_sales_users',
+  adminController.getSalesUsers
 );
 
 module.exports = router;

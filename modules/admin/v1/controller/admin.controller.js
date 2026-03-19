@@ -7,7 +7,6 @@ const { responseStatusCodes } = require("../../../../helpers/appConstants");
 const { getImageUrlPublic } = require("../../../../helpers/utils");
 require("dotenv").config();
 const admin = require('../../../../helpers/firebase'); 
-const { getImageUrlPublic } = require("../../../../helpers/utils");
 
 const getSalesAds = async (req, res, next) => {
   try {

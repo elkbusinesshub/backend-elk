@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const superAdminController = require("./controller/superadmin.controller");
 const validation = require('./validation/superadmin.validation');
+const multer = require("multer");
+const upload = multer();
 
 
 router.post(

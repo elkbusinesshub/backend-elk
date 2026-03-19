@@ -36,5 +36,12 @@ module.exports = [
         version: "v1",
         route: "chat"
 
+    },
+    {
+        name: "SuperAdmin",
+        path: "superadmin",
+        version: "v1",
+        route: "super-admin"
+
     }
 ];

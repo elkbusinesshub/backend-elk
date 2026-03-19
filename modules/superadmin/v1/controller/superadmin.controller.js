@@ -7,11 +7,11 @@ const User = require("../../../../models/user.model");
 const AdViews = require("../../../../models/adView.model");
 const AdWishLists = require("../../../../models/adWishList.model");
 const { responseStatusCodes, responseMessages } = require("../../../../helpers/appConstants");
-const { getImageUrlPublic, deleteImageFromS3 } = require("../../../../helpers/utils");
+const { getImageUrlPublic, deleteImageFromS3, uploadToS3 } = require("../../../../helpers/utils");
 require("dotenv").config();
 const admin = require('../../../../helpers/firebase'); 
 const messaging = admin.messaging();
-const { getImageUrlPublic, uploadToS3 } = require("../../../../helpers/utils");
+
 
 const getAdminAds = async (req, res, next) => {
     try {
