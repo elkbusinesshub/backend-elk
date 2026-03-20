@@ -209,7 +209,8 @@ module.exports = {
             .try(joi.string(), joi.number())
             .required(),
 
-          page: joi.number().integer().min(1).default(1),
+          offset: joi.number().integer().min(0).default(0),
+          limit: joi.number().integer(),
 
           min_price: joi.number().min(0).optional(),
 
