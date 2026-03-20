@@ -589,7 +589,7 @@ exports.verifyOtp = async (req, res, next) => {
         token: token,
         profile: newUser.profile,
         referral_code: newReferralCode,
-        role: user?.role
+        role: newUser?.role
       });
     }
   } catch (error) {
