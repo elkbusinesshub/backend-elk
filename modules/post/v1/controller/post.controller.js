@@ -37,7 +37,6 @@ const {
 
 require("dotenv").config();
 
-//done
 exports.createAd = async (req, res, next) => {
   try {
     const { id: userId } = req.user;
@@ -113,7 +112,6 @@ exports.createAd = async (req, res, next) => {
   }
 };
 
-//done
 exports.updateAdImage = async (req, res, next) => {
   try {
     const { ad_id, ad_stage, ad_status } = req.query;
@@ -149,12 +147,17 @@ exports.updateAdImage = async (req, res, next) => {
       adImages = [{ ad_id, image: "1761544844899520_auto.png" }];
     }
 
-    // Update ad and save images in parallel
+
     await Promise.all([
-      ad.update({
-        ad_status: ad_status ?? "offline",
-        ad_stage: ad_stage ?? 2,
-      }),
+      Ad.update(
+        {
+          ad_status: ad_status ?? "offline",
+          ad_stage: ad_stage ?? 2,
+        },
+        {
+          where: { ad_id },
+        },
+      ),
       AdImage.bulkCreate(adImages),
     ]);
 
@@ -1160,9 +1163,9 @@ exports.searchAds = async (req, res, next) => {
 //           include: [
 //             [
 //               literal(`(
-//                                 SELECT (6371 * 
-//                                     acos(cos(radians(${latitude})) * cos(radians(ad_location.latitude)) * 
-//                                     cos(radians(ad_location.longitude) - radians(${longitude})) + 
+//                                 SELECT (6371 *
+//                                     acos(cos(radians(${latitude})) * cos(radians(ad_location.latitude)) *
+//                                     cos(radians(ad_location.longitude) - radians(${longitude})) +
 //                                     sin(radians(${latitude})) * sin(radians(ad_location.latitude)))
 //                                 ) AS distance
 //                             )`),
