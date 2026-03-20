@@ -233,6 +233,7 @@ const buildUserPayload = (user, token, referralCode, profileUrl = null) => ({
   email: user.email,
   referral_code: referralCode || "",
   description: user.description,
+  role: user?.role,
   is_admin: user.is_admin,
 });
 
@@ -260,8 +261,6 @@ exports.createUser = async (req, res, next) => {
         },
       ],
     });
-
-    // ── EXISTING USER ────────────────────────────────────────────────
     if (existingUser) {
       // Lazily create referral code if missing
       if (!existingUser.referral_code) {
@@ -295,7 +294,6 @@ exports.createUser = async (req, res, next) => {
       );
     }
 
-    // ── NEW USER ─────────────────────────────────────────────────────
     const newUser = await User.create({
       name,
       user_id: generateUserId(),
@@ -529,6 +527,7 @@ exports.verifyOtp = async (req, res, next) => {
         token: token,
         profile: user.profile,
         referral_code: user.referral_code?.referral_code || "",
+        role: user?.role
       });
     } else {
       const newUser = await User.create({
@@ -590,6 +589,7 @@ exports.verifyOtp = async (req, res, next) => {
         token: token,
         profile: newUser.profile,
         referral_code: newReferralCode,
+        role: user?.role
       });
     }
   } catch (error) {
