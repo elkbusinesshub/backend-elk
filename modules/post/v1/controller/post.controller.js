@@ -517,7 +517,6 @@ exports.getAdDetails = async (req, res, next) => {
   }
 };
 
-//done
 exports.myAds = async (req, res, next) => {
   try {
     const { id: userId } = req.user;

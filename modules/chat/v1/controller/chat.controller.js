@@ -12,6 +12,8 @@ const {
 const { getImageUrlPublic, uploadToS3, generateRoomId } = require("../../../../helpers/utils");
 const ReportUser = require("../../../../models/reportUser.model");
 const { sendChatNotification } = require('../service/chat.service');
+const dayjs = require("dayjs");
+
 
 //done
 const addChat = async (req, res, next) => {
@@ -513,78 +515,80 @@ const getChatRooms = async (req, res, next) => {
 
 //done
 const fetchChatRooms = async (authUserId) => {
-    try {
-        const chatRooms = await ChatRoom.findAll({
-            where: {
-                [Op.or]: [{ user1: authUserId }, { user2: authUserId }]
-            },
-            attributes: {
-                include: [[
-                    sequelize.fn(
-                        'COUNT',
-                        sequelize.literal(
-                            `CASE WHEN chat_messages.reciever_id = ${authUserId} AND chat_messages.status = 'send' THEN 1 END`
-                        )
-                    ),
-                    'new_message_count'
-                ]]
-            },
-            include: [
-                { model: User, as: 'User1', attributes: ['user_id', 'name', 'profile'] },
-                { model: User, as: 'User2', attributes: ['user_id', 'name', 'profile'] },
-                { model: ChatMessage, as: 'chat_messages', attributes: [], required: false }
-            ],
-            group: ['ChatRoom.id'],
-            order: [['last_message_time', 'DESC']]
-        });
+  const id = String(authUserId); // ✅ normalize to string for comparison
+  console.log("🔍 fetchChatRooms authUserId:", id, typeof id);
 
-        if (!chatRooms.length) return [];
+  try {
+    const chatRooms = await ChatRoom.findAll({
+      where: {
+        [Op.or]: [{ user1: id }, { user2: id }]
+      },
+      attributes: {
+        include: [[
+          sequelize.fn(
+            'COUNT',
+            sequelize.literal(
+              `CASE WHEN chat_messages.reciever_id = ${id} AND chat_messages.status = 'send' THEN 1 END`
+            )
+          ),
+          'new_message_count'
+        ]]
+      },
+      include: [
+        { model: User, as: 'User1', attributes: ['user_id', 'name', 'profile'] },
+        { model: User, as: 'User2', attributes: ['user_id', 'name', 'profile'] },
+        { model: ChatMessage, as: 'chat_messages', attributes: [], required: false }
+      ],
+      group: ['ChatRoom.id'],
+      order: [['last_message_time', 'DESC']]
+    });
 
-        // Collect all other user IDs in one pass
-        const otherUserIds = chatRooms.map(room =>
-            room.User1.user_id === authUserId ? room.User2.user_id : room.User1.user_id
-        );
+    console.log("🔍 chatRooms found:", chatRooms.length);
+    if (!chatRooms.length) return [];
 
-        // 2 queries for all block statuses instead of 2N
-        const [blockedByOthers, youBlockedOthers] = await Promise.all([
-            BlockedUser.findAll({
-                where: { blocker_id: { [Op.in]: otherUserIds }, blocked_id: authUserId },
-                attributes: ['blocker_id']
-            }),
-            BlockedUser.findAll({
-                where: { blocker_id: authUserId, blocked_id: { [Op.in]: otherUserIds } },
-                attributes: ['blocked_id']
-            })
-        ]);
+    const otherUserIds = chatRooms.map(room =>
+      String(room.User1.user_id) === id ? room.User2.user_id : room.User1.user_id // ✅ cast comparison
+    );
 
-        // Sets for O(1) lookup
-        const blockedByOthersSet = new Set(blockedByOthers.map(b => b.blocker_id));
-        const youBlockedOthersSet = new Set(youBlockedOthers.map(b => b.blocked_id));
+    const [blockedByOthers, youBlockedOthers] = await Promise.all([
+      BlockedUser.findAll({
+        where: { blocker_id: { [Op.in]: otherUserIds }, blocked_id: id },
+        attributes: ['blocker_id']
+      }),
+      BlockedUser.findAll({
+        where: { blocker_id: id, blocked_id: { [Op.in]: otherUserIds } },
+        attributes: ['blocked_id']
+      })
+    ]);
 
-        return chatRooms.map(chatRoom => {
-            const isAuthUser1 = chatRoom.User1.user_id === authUserId;
+    const blockedByOthersSet = new Set(blockedByOthers.map(b => String(b.blocker_id)));
+    const youBlockedOthersSet = new Set(youBlockedOthers.map(b => String(b.blocked_id)));
 
-            const authUser = (isAuthUser1 ? chatRoom.User1 : chatRoom.User2).toJSON();
-            const otherUser = (isAuthUser1 ? chatRoom.User2 : chatRoom.User1).toJSON();
+    return chatRooms.map(chatRoom => {
+      const isAuthUser1 = String(chatRoom.User1.user_id) === id; // ✅ cast comparison
 
-            if (authUser.profile) authUser.profile = getImageUrlPublic(authUser.profile);
-            if (otherUser.profile) otherUser.profile = getImageUrlPublic(otherUser.profile);
+      const authUser = (isAuthUser1 ? chatRoom.User1 : chatRoom.User2).toJSON();
+      const otherUser = (isAuthUser1 ? chatRoom.User2 : chatRoom.User1).toJSON();
 
-            return {
-                ...chatRoom.toJSON(),
-                last_message_time: dayjs(chatRoom.last_message_time).format('MMMM D, YYYY h:mm A'),
-                User1: null,
-                User2: null,
-                authUser,
-                otherUser,
-                isBlockedByOther: blockedByOthersSet.has(otherUser.user_id),
-                isYouBlockedOther: youBlockedOthersSet.has(otherUser.user_id)
-            };
-        });
+      if (authUser.profile) authUser.profile = getImageUrlPublic(authUser.profile);
+      if (otherUser.profile) otherUser.profile = getImageUrlPublic(otherUser.profile);
 
-    } catch (error) {
-        return [];
-    }
+      return {
+        ...chatRoom.toJSON(),
+        last_message_time: dayjs(chatRoom.last_message_time).format('MMMM D, YYYY h:mm A'),
+        User1: null,
+        User2: null,
+        authUser,
+        otherUser,
+        isBlockedByOther: blockedByOthersSet.has(String(otherUser.user_id)),
+        isYouBlockedOther: youBlockedOthersSet.has(String(otherUser.user_id))
+      };
+    });
+
+  } catch (error) {
+    console.error("❌ fetchChatRooms error:", error.message); // ✅ fixed — no next()
+    return [];
+  }
 };
 
 //done
