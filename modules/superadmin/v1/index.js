@@ -33,7 +33,7 @@ router.put(
   "/block_user",
   validation.blockUserByIdValidation,
   superAdminController.blockUserById
-);
+);     
 router.get(
   "/get-sales-users",
   validation.getSalesUsersValidation,

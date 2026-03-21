@@ -25,13 +25,14 @@ module.exports.responseMessages = {
 
   //admin
   adminAdsFetched: "Admin ads fetched successfully.",
-  allUsersFetched: "All users fetched successfully.",
+  salesUsersFetched: "All sales created users fetched successfully.",
   userBlocked: "User blocked successfully.",
   adDeleted: "Ad deleted successfully.",
   adNotFound: "Ad not found",
   adLocationsFetched: "Ad locations fetched successfully.",
   adminusercreated:"User and Ad created successfully",
   adminusercreatedalready:"User account already created",
+  cannotReferYourself: "You Cannot refer yourself",
 
   //common
   priceCategoriesFetched: "Price Categories fetched successfully",
@@ -120,7 +121,10 @@ module.exports.responseMessages = {
   chatAlreadyDeleted : "Chat message already deleted",
   chatDeleted : "Chat message deleted successfully",
   userReported: "User report successfully",
-  messageUpdated: "Message Updated successfully"
+  messageUpdated: "Message Updated successfully",
+
+  //superadmin
+  allUsersFetched: "All user fetched successfully"
   
 
 

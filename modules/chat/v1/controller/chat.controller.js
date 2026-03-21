@@ -15,7 +15,6 @@ const { sendChatNotification } = require('../service/chat.service');
 const dayjs = require("dayjs");
 
 
-//done
 const addChat = async (req, res, next) => {
     try {
         const { authUserId, userId, message, type, file_name, ad_id, ad_name, status } = req.body;
@@ -95,7 +94,6 @@ const addChat = async (req, res, next) => {
     }
 };
 
-//done
 const blockAUser = async (req, res, next) => {
   const { authUserId, otherUserId } = req.body;
   // if ( !authUserId && !otherUserId ) {
@@ -127,7 +125,7 @@ const blockAUser = async (req, res, next) => {
   }
 };
 
-//done
+
 const reportAUser = async (req, res, next) => {
   const { authUserId, otherUserId, reason } = req.body;
   if (!authUserId && !otherUserId && !reason) {
@@ -154,7 +152,7 @@ const reportAUser = async (req, res, next) => {
   }
 };
 
-//done
+
 const unblockAUser = async (req, res, next) => {
   const { authUserId, otherUserId } = req.body;
   //   if (!authUserId && !otherUserId) {
@@ -188,7 +186,6 @@ const unblockAUser = async (req, res, next) => {
   }
 };
 
-//done
 const isUserBlocked = async (req, res, next) => {
   const { blockerId, blockedId } = req.query;
   //   if (!blockerId || !blockedId) {
@@ -220,7 +217,7 @@ const isUserBlocked = async (req, res, next) => {
   }
 };
 
-//fix
+
 const updateMessageStatus = async (authUserId, otherUserId) => {
   try {
     let chatRoom = await ChatRoom.findOne({
@@ -254,7 +251,7 @@ const updateMessageStatus = async (authUserId, otherUserId) => {
   }
 };
 
-//done
+
 const getChatMessages = async (req, res, next) => {
     try {
         const { authUserId, otherUserId } = req.query;
@@ -305,7 +302,7 @@ const getChatMessages = async (req, res, next) => {
     }
 };
 
-//done
+
 const getTotalChatRoomsCount = async (req, res, next) => {
     try {
         const { authUserId } = req.query;

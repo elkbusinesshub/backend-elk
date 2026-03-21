@@ -1,25 +1,22 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 const adminController = require("./controller/admin.controller");
-const validation = require('./validation/admin.validation');
+const validation = require("./validation/admin.validation");
 const multer = require("multer");
 const upload = multer();
+const authenticateToken = require("../../../helpers/authentication");
 
 router.post(
-  '/admin-ad-create',
+  "/admin-ad-create",
+  authenticateToken,
+  
   upload.any(),
   validation.createUserAdAdminValidation,
-  adminController.createUserAdAdmin
+  adminController.createUserAdAdmin,
 );
 
-router.get(
-  '/get_sales_ads',
-  adminController.getSalesAds
-);
+router.get("/get_sales_ads", authenticateToken, adminController.getSalesAds);
 
-router.get(
-  '/get_sales_users',
-  adminController.getSalesUsers
-);
+router.get("/get_sales_users",authenticateToken, adminController.getSalesUsers);
 
 module.exports = router;
