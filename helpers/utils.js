@@ -82,11 +82,34 @@ async function uploadToS3(file, fileName) {
     let contentType = file.mimetype;
     const isImage = file.mimetype.startsWith("image/");
 
+    // if (isImage) {
+    //   const sharpInstance = sharp(file.buffer).resize(800, 600, {
+    //     fit: "inside",
+    //     withoutEnlargement: true,
+    //   });
+
+    //   if (file.mimetype === "image/jpeg") {
+    //     fileBuffer = await sharpInstance
+    //       .jpeg({ quality: 75, progressive: false, mozjpeg: true })
+    //       .toBuffer();
+    //   } else if (file.mimetype === "image/png") {
+    //     fileBuffer = await sharpInstance
+    //       .png({ compressionLevel: 8, progressive: false })
+    //       .toBuffer();
+    //   } else {
+    //     // Fallback for other image types — just pass through
+    //     fileBuffer = await sharpInstance.toBuffer();
+    //   }
+    // }
+
     if (isImage) {
-      const sharpInstance = sharp(file.buffer).resize(800, 600, {
-        fit: "inside",
-        withoutEnlargement: true,
-      });
+      const sharpInstance = sharp(file.buffer)
+        .rotate() // ✅ handles JPEG EXIF rotation
+        .resize(800, 600, {
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .withMetadata(); // ✅ preserves original metadata for all formats
 
       if (file.mimetype === "image/jpeg") {
         fileBuffer = await sharpInstance
@@ -97,7 +120,6 @@ async function uploadToS3(file, fileName) {
           .png({ compressionLevel: 8, progressive: false })
           .toBuffer();
       } else {
-        // Fallback for other image types — just pass through
         fileBuffer = await sharpInstance.toBuffer();
       }
     }
@@ -408,17 +430,17 @@ function logoBufferHeightRatio(_buf) {
 }
 // Extracted helper — generates a placeholder image when no files are uploaded
 const generatePlaceholderImage = async (ad, width = 800, height = 400) => {
-    const logoPath = path.join(__dirname, '../../../../assets/logo2.png');
+  const logoPath = path.join(__dirname, "../../../../assets/logo2.png");
 
-    const logoBuffer = await sharp(logoPath)
-        .resize(Math.round(width * 0.7))
-        .png()
-        .toBuffer();
+  const logoBuffer = await sharp(logoPath)
+    .resize(Math.round(width * 0.7))
+    .png()
+    .toBuffer();
 
-    const logoBase64 = logoBuffer.toString('base64');
-    const nameText = escapeXml(ad.title || 'Ad');
+  const logoBase64 = logoBuffer.toString("base64");
+  const nameText = escapeXml(ad.title || "Ad");
 
-    const textSvg = `
+  const textSvg = `
         <svg width="${width}" height="${height}">
             <rect width="100%" height="100%" fill="white"/>
             <style>
@@ -428,7 +450,7 @@ const generatePlaceholderImage = async (ad, width = 800, height = 400) => {
         </svg>
     `;
 
-    const logoSvg = `
+  const logoSvg = `
         <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
             <image
                 href="data:image/png;base64,${logoBase64}"
@@ -441,12 +463,11 @@ const generatePlaceholderImage = async (ad, width = 800, height = 400) => {
         </svg>
     `;
 
-    return sharp(Buffer.from(textSvg))
-        .png()
-        .composite([{ input: Buffer.from(logoSvg), top: 0, left: 0 }])
-        .jpeg({ quality: 92 });
+  return sharp(Buffer.from(textSvg))
+    .png()
+    .composite([{ input: Buffer.from(logoSvg), top: 0, left: 0 }])
+    .jpeg({ quality: 92 });
 };
-
 
 module.exports = {
   globalResponseHandler,
@@ -467,5 +488,5 @@ module.exports = {
   generateAdId,
   generateRoomId,
   generateAdId,
-  generatePlaceholderImage
+  generatePlaceholderImage,
 };
