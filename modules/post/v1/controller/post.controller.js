@@ -398,17 +398,11 @@ exports.myAds = async (req, res, next) => {
 
     const formattedAds = ads.map((ad) => formatAd(ad));
 
-    const fullUrl = `${req.protocol}://${req.get("host")}${req.baseUrl}${req.path}`;
     formattedAds.map((ad)=>console.log(ad.ad_images));
-
+    const fullUrl = `${req.protocol}://${req.get("host")}${req.baseUrl}${req.path}`;
     return res.success(responseMessages.myadsFetched, {
-      pagination: formatPagination({
-        page,
-        perPage,
-        total: count,
-        path: fullUrl,
-      }),
       data: formattedAds,
+      fullUrl: fullUrl
     });
   } catch (error) {
     return next(error);
@@ -495,17 +489,10 @@ exports.recommentedPosts = async (req, res, next) => {
     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
 
     const formattedAds = ads.map((ad) => formatAd(ad));
-
     const fullUrl = `${req.protocol}://${req.get("host")}${req.baseUrl}${req.path}`;
-
     return res.success(responseMessages.recommentedPosts, {
-      pagination: formatPagination({
-        page,
-        perPage,
-        total: count,
-        path: fullUrl,
-      }),
       data: formattedAds,
+      fullUrl: fullUrl
     });
   } catch (error) {
     return next(error);
@@ -537,15 +524,7 @@ exports.getAllPosts = async (req, res, next) => {
 
     const formattedPosts = posts.map((post) => formatAd(post));
 
-    const fullUrl = `${req.protocol}://${req.get("host")}${req.baseUrl}${req.path}`;
-
     return res.success(responseMessages.allAds, {
-      pagination: formatPagination({
-        page,
-        perPage,
-        total: count,
-        path: fullUrl,
-      }),
       data: formattedPosts,
     });
   } catch (error) {
@@ -604,17 +583,11 @@ exports.searchAds = async (req, res, next) => {
     });
 
     const formattedAds = ads.map((ad) => formatAd(ad));
-
     const fullUrl = `${req.protocol}://${req.get("host")}${req.baseUrl}${req.path}`;
 
     return res.success(responseMessages.searchCategories, {
-      pagination: formatPagination({
-        page,
-        perPage,
-        total: count,
-        path: fullUrl,
-      }),
       data: formattedAds,
+      fullUrl: fullUrl
     });
   } catch (error) {
     return next(error);
@@ -728,17 +701,11 @@ exports.rentCategoryPosts = async (req, res, next) => {
         const formattedAds = ads.map((ad) =>
           formatAd(ad, { userId: user_id, wishListAdIds }),
         );
-
         const fullUrl = `${req.protocol}://${req.get("host")}${req.baseUrl}${req.path}`;
 
         return res.success(responseMessages.rentCategoryPosts, {
-          pagination: formatPagination({
-            page,
-            perPage,
-            total: count,
-            path: fullUrl,
-          }),
           data: formattedAds,
+      fullUrl: fullUrl
         });
       }
     }
@@ -792,17 +759,11 @@ exports.rentCategoryPosts = async (req, res, next) => {
     const formattedAds = ads.map((ad) =>
       formatAd(ad, { userId: user_id, wishListAdIds }),
     );
-
     const fullUrl = `${req.protocol}://${req.get("host")}${req.baseUrl}${req.path}`;
 
     return res.success(responseMessages.rentCategoryPosts, {
-      pagination: formatPagination({
-        page,
-        perPage,
-        total: count,
-        path: fullUrl,
-      }),
       data: formattedAds,
+      fullUrl: fullUrl
     });
   } catch (error) {
     return next(error);
@@ -831,17 +792,10 @@ exports.bestServiceProviders = async (req, res, next) => {
     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
 
     const formattedAds = ads.map((ad) => formatAd(ad));
-
     const fullUrl = `${req.protocol}://${req.get("host")}${req.baseUrl}${req.path}`;
-
     return res.success(responseMessages.bestServiceProviders, {
-      pagination: formatPagination({
-        page,
-        perPage,
-        total: count,
-        path: fullUrl,
-      }),
       data: formattedAds,
+      fullUrl: fullUrl
     });
   } catch (error) {
     return next(error);
