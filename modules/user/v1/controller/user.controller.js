@@ -76,154 +76,6 @@ const sendSangamamOtp = async (mobile, otp) => {
   return await sendCurl(url);
 };
 
-// exports.createUser = async (req, res, next) => {
-//   const { name, uuid, mobile, email, referralCode } = req.body;
-//   if (!mobile && !email) {
-//     return res.error(responseMessages.invalidRequest);
-//     // return res.status(responseStatusCodes.badRequest).json({ message: responseMessages.invalidRequest });
-//   }
-//   if (!name || !uuid) {
-//     return res.error(responseMessages.invalidRequest);
-//     // return res.status(responseStatusCodes.badRequest).json({ message: responseMessages.invalidRequest });
-//   }
-//   try {
-//     let user;
-//     if (email) {
-//       user = await User.findOne({
-//         where: { email: email },
-//         include: [
-//           {
-//             model: ReferralCode,
-//             as: "referral_code",
-//             attributes: ["referral_code"],
-//           },
-//         ],
-//       });
-//       if (user) {
-//         if (!user.referral_code) {
-//           const newCode = generateReferralCode();
-//           await ReferralCode.create({
-//             user_id: user.user_id,
-//             referral_code: newCode,
-//           });
-//           user.referral_code = { referral_code: newCode };
-//         }
-//         let profileUrl;
-//         if (user.profile) {
-//           profileUrl = getImageUrlPublic(user.profile);
-//         }
-//         const token = jwt.sign(
-//           { id: user.user_id },
-//           process.env.ACCESS_TOKEN_SECRET,
-//         );
-//         await user.save();
-
-//         // return res.status(responseStatusCodes.success).json({
-//         //     success: true,
-//         //     message: responseMessages.userLogged,
-//         //     data: {
-//         //         user_id:user.user_id,
-//         //         name:user.name,
-//         //         token: token,
-//         //         profile: profileUrl,
-//         //         mobile_number: user.mobile_number,
-//         //         email:user.email,
-//         //         referral_code: user.referral_code?.referral_code || '',
-//         //         description:user.description,
-//         //         is_admin: user.is_admin
-//         //     }
-//         // });
-//         return res.success(responseMessages.userLogged, {
-//           user_id: user.user_id,
-//           name: user.name,
-//           token: token,
-//           profile: profileUrl,
-//           mobile_number: user.mobile_number,
-//           email: user.email,
-//           referral_code: user.referral_code?.referral_code || "",
-//           description: user.description,
-//           is_admin: user.is_admin,
-//         });
-//       } else {
-//         user = new User({
-//           name,
-//           user_id: generateUserId(),
-//           email,
-//           email_uid: uuid,
-//         });
-//         await user.save();
-//         const token = jwt.sign(
-//           { id: user.user_id },
-//           process.env.ACCESS_TOKEN_SECRET,
-//         );
-//         let newReferralCode = generateReferralCode();
-//         await ReferralCode.create({
-//           user_id: user.user_id,
-//           referral_code: newReferralCode,
-//         });
-//         if (referralCode && referralCode !== "") {
-//           const referralOwner = await ReferralCode.findOne({
-//             where: { referral_code: referralCode },
-//           });
-//           const referrerId = referralOwner.user_id;
-//           if (referrerId === user.user_id) {
-//             return res
-//               .status(responseStatusCodes.badRequest)
-//               .json({ message: responseMessages.referralError });
-//           }
-//           if (referralOwner) {
-//             const referredUserId = referralOwner.user_id;
-//             const loginUserId = user.user_id;
-//             const existingRef = await ReferralCodeLogin.findOne({
-//               where: { login_id: loginUserId },
-//             });
-
-//             if (!existingRef) {
-//               await ReferralCodeLogin.create({
-//                 refered_id: referredUserId,
-//                 login_id: loginUserId,
-//               });
-//             }
-//           }
-//         }
-//         // return res.status(responseStatusCodes.success).json({
-//         //   success: true,
-//         //   message: responseMessages.userLogged,
-//         //   data: {
-//         //     user_id: user.user_id,
-//         //     name: user.name,
-//         //     token: token,
-//         //     profile: user.profile,
-//         //     mobile_number: user.mobile_number,
-//         //     email: user.email,
-//         //     referral_code: newReferralCode,
-//         //     description: user.description,
-//         //     is_admin: user.is_admin,
-//         //   },
-//         // });
-//         return res.success(responseMessages.userLogged, {
-//           user_id: user.user_id,
-//           name: user.name,
-//           token: token,
-//           profile: user.profile,
-//           mobile_number: user.mobile_number,
-//           email: user.email,
-//           referral_code: newReferralCode,
-//           description: user.description,
-//           is_admin: user.is_admin,
-//         });
-//       }
-//     }
-//   } catch (error) {
-//     // return res
-//     //   .status(responseStatusCodes.internalServerError)
-//     //   .json({ message: responseMessages.internalServerError, error });
-//     return next(error);
-//   }
-// };
-
-
-// Helper to build user response payload
 const buildUserPayload = (user, token, referralCode, profileUrl = null) => ({
   user_id: user.user_id,
   name: user.name,
@@ -240,12 +92,10 @@ const buildUserPayload = (user, token, referralCode, profileUrl = null) => ({
 exports.createUser = async (req, res, next) => {
   const { name, uuid, mobile, email, referralCode } = req.body;
 
-  // Input validation
   if (!name || !uuid || (!mobile && !email)) {
     return res.error(responseMessages.invalidRequest);
   }
 
-  // Currently only email flow is handled — return early if no email
   if (!email) {
     return res.error(responseMessages.invalidRequest);
   }
@@ -262,7 +112,6 @@ exports.createUser = async (req, res, next) => {
       ],
     });
     if (existingUser) {
-      // Lazily create referral code if missing
       if (!existingUser.referral_code) {
         const newCode = generateReferralCode();
         await ReferralCode.create({
@@ -310,7 +159,6 @@ exports.createUser = async (req, res, next) => {
       })(),
     ]);
 
-    // Handle referral code attribution
     if (referralCode) {
       const referralOwner = await ReferralCode.findOne({
         where: { referral_code: referralCode },
@@ -350,36 +198,22 @@ exports.addReferralLogin = async (req, res, next) => {
   try {
     const { referralCode, login_user_id } = req.body;
     if (!referralCode || !login_user_id) {
-      //   return res
-      //     .status(responseStatusCodes.badRequest)
-      //     .json({ message: responseMessages.invalidRequest });
       return res.error(responseMessages.invalidRequest);
     }
     const referralOwner = await ReferralCode.findOne({
       where: { referral_code: referralCode },
     });
     if (!referralOwner) {
-      //   return res
-      //     .status(responseStatusCodes.badRequest)
-      //     .json({ message: responseMessages.invalidReferralCode });
       return res.error(responseMessages.invalidReferralCode);
     }
     const referrerId = referralOwner.user_id;
     if (referrerId === login_user_id) {
-      //   return res
-      //     .status(responseStatusCodes.badRequest)
-      //     .json({ message: responseMessages.referralError });
       return res.error(responseMessages.referralError);
     }
     const existingUsage = await ReferralCodeLogin.findOne({
       where: { login_id: login_user_id },
     });
     if (existingUsage) {
-      //   return res.status(responseStatusCodes.success).json({
-      //     message: responseMessages.referralSuccessAlready,
-      //     success: true,
-      //     data: existingUsage,
-      //   });
       return res.success(
         responseMessages.referralSuccessAlready,
         existingUsage,
@@ -389,17 +223,8 @@ exports.addReferralLogin = async (req, res, next) => {
       refered_id: referrerId,
       login_id: login_user_id,
     });
-    // return res.status(responseStatusCodes.created).json({
-    //   success: true,
-    //   message: responseMessages.referralSuccess,
-    //   data: newReferralLog,
-    // });
     return res.success(responseMessages.referralSuccess, newReferralLog);
   } catch (error) {
-    // return res.status(responseStatusCodes.internalServerError).json({
-    //   message: responseMessages.internalServerError,
-    //   error,
-    // });
     return next(error);
   }
 };
@@ -407,11 +232,6 @@ exports.addReferralLogin = async (req, res, next) => {
 exports.sendOtp = async (req, res, next) => {
   try {
     const { mobile } = req.body;
-    // if (!mobile) {
-    //   return res
-    //     .status(responseStatusCodes.badRequest)
-    //     .json({ message: responseMessages.invalidRequest });
-    // }
     const limits = 50;
     const otpRequestsCount = await Otp.count({
       where: {
@@ -420,7 +240,6 @@ exports.sendOtp = async (req, res, next) => {
       },
     });
     if (otpRequestsCount > limits) {
-      //   return res.status(429).json({ message: responseMessages.otpLimit });
       return res.error(responseMessages.otpLimit);
     }
     const verificationId = generateRandomString();
@@ -440,15 +259,8 @@ exports.sendOtp = async (req, res, next) => {
       verification_id: verificationId,
       otp: otp,
     });
-    // res.json({
-    //   message: responseMessages.otpSend,
-    //   verificationId: verificationId,
-    // });
     return res.success(responseMessages.otpSend, { verificationId });
   } catch (error) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
@@ -457,18 +269,12 @@ exports.verifyOtp = async (req, res, next) => {
   try {
     const { verificationId, otp, name, referralCode } = req.body;
     if (!verificationId || !otp) {
-      //   return res
-      //     .status(responseStatusCodes.badRequest)
-      //     .json({ message: responseMessages.invalidRequest });
       return res.error(responseMessages.invalidRequest);
     }
     const otpRecord = await Otp.findOne({
       where: { verification_id: verificationId, otp: otp },
     });
     if (!otpRecord) {
-      //   return res
-      //     .status(responseStatusCodes.badRequest)
-      //     .json({ message: responseMessages.InvalidOtp });
       return res.error(responseMessages.InvalidOtp);
     }
 
@@ -476,8 +282,6 @@ exports.verifyOtp = async (req, res, next) => {
     const otpTime = moment(otpRecord.createdAt);
 
     if (currentTime.diff(otpTime, "minutes") > 10) {
-      // await Otp.destroy({ where: { id: otpRecord.id } });
-      //   return res.status(410).json({ message: responseMessages.otpExpired });
       return res.error(responseMessages.otpExpired);
     }
     let user = await User.findOne({
@@ -508,18 +312,6 @@ exports.verifyOtp = async (req, res, next) => {
         profileUrl = getImageUrlPublic(user.profile);
       }
       user.profile = profileUrl;
-      //   return res.status(responseStatusCodes.success).json({
-      //     success: true,
-      //     message: responseMessages.userLogged,
-      //     data: {
-      //       user_id: user.user_id,
-      //       name: user.name,
-      //       mobile_number: user.mobile_number,
-      //       token: token,
-      //       profile: user.profile,
-      //       referral_code: user.referral_code?.referral_code || "",
-      //     },
-      //   });
       return res.success(responseMessages.userLogged, {
         user_id: user.user_id,
         name: user.name,
@@ -571,18 +363,6 @@ exports.verifyOtp = async (req, res, next) => {
           }
         }
       }
-      //   return res.status(responseStatusCodes.success).json({
-      //     success: true,
-      //     message: responseMessages.userLogged,
-      //     data: {
-      //       user_id: newUser.user_id,
-      //       name: newUser.name,
-      //       mobile_number: newUser.mobile_number,
-      //       token: token,
-      //       profile: newUser.profile,
-      //       referral_code: newReferralCode,
-      //     },
-      //   });
       return res.success(responseMessages.userLogged, {
         user_id: newUser.user_id,
         name: newUser.name,
@@ -595,9 +375,6 @@ exports.verifyOtp = async (req, res, next) => {
       });
     }
   } catch (error) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
@@ -606,32 +383,21 @@ exports.verifyUpdateMobileOtp = async (req, res, next) => {
   try {
     const { verificationId, otp } = req.body;
     if (!verificationId || !otp) {
-      //   return res
-      //     .status(responseStatusCodes.badRequest)
-      //     .json({ message: responseMessages.invalidRequest });
       return res.error(responseMessages.invalidRequest);
     }
     const otpRecord = await Otp.findOne({
       where: { verification_id: verificationId, otp: otp },
     });
     if (!otpRecord) {
-      //   return res
-      //     .status(responseStatusCodes.badRequest)
-      //     .json({ message: responseMessages.InvalidOtp });
       return res.error(responseMessages.InvalidOtp);
     }
     const currentTime = moment();
     const otpTime = moment(otpRecord.createdAt);
     if (currentTime.diff(otpTime, "minutes") > 10) {
-      // return res.status(410).json({ message: responseMessages.otpExpired });
       return res.error(responseMessages.otpExpired);
     }
-    // return res.json({ message: responseMessages.mobileUpdated });
     return res.success(responseMessages.mobileUpdated);
   } catch (error) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
@@ -641,9 +407,6 @@ exports.getUserById = async (req, res, next) => {
   try {
     const user = await User.findOne({ where: { user_id: id } });
     if (!user) {
-      //   return res
-      //     .status(responseStatusCodes.badRequest)
-      //     .send({ message: responseMessages.userNotFound });
       return res.error(responseMessages.userNotFound);
     }
     let profileUrl;
@@ -651,12 +414,8 @@ exports.getUserById = async (req, res, next) => {
       profileUrl = getImageUrlPublic(user.profile);
     }
     user.profile = profileUrl;
-    // res.status(responseStatusCodes.success).send(user);
     res.success(responseMessages.userDetails, user);
   } catch (err) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .send({ message: responseMessages.internalServerError });
     return next(err);
   }
 };
@@ -672,14 +431,8 @@ exports.updateProfilePic = async (req, res, next) => {
     await user.save();
     let profileUrl;
     profileUrl = getImageUrlPublic(user.profile);
-    // res
-    //   .status(responseStatusCodes.success)
-    //   .json({ success: true, data: profileUrl });
     return res.success(responseMessages.profileUpdateSuccessfully, profileUrl);
   } catch (e) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ success: false, message: responseMessages.internalServerError });
     return next(error);
   }
 };
@@ -688,45 +441,24 @@ exports.updateEmailOrMobile = async (req, res, next) => {
   try {
     const { email, mobile, uid, user_id } = req.body;
     if (!email && !mobile) {
-      //   return res
-      //     .status(responseStatusCodes.badRequest)
-      //     .json({ success: false, message: responseMessages.invalidRequest });
       return res.error(responseMessages.invalidRequest);
     }
     let user = await User.findOne({ where: { user_id: user_id } });
     if (!user) {
-      //   return res
-      //     .status(responseStatusCodes.badRequest)
-      //     .json({ success: false, message: responseMessages.userNotFound });
       return res.error(responseMessages.userNotFound);
     }
     if (mobile) {
       user.mobile_number = mobile;
       await user.save();
-      //   return res.json({
-      //     success: true,
-      //     message: responseMessages.mobileUpdated,
-      //   });
       return res.success(responseMessages.mobileUpdated);
     }
     if (email && uid) {
       user.email = email;
       user.email_uid = uid;
-      //   await user.save();
-      //   return res.json({
-      //     success: true,
-      //     message: responseMessages.emailUpdated,
-      //   });
       return res.success(responseMessages.emailUpdated);
     }
-    // return res
-    //   .status(responseStatusCodes.badRequest)
-    //   .json({ success: false, message: responseMessages.invalidRequest });
     return res.error(responseMessages.invalidRequest);
   } catch (error) {
-    // return res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ success: false, message: responseMessages.internalServerError });
     return next(error);
   }
 };
@@ -735,30 +467,17 @@ exports.updateProfile = async (req, res, next) => {
   const { name, description, user_id } = req.body;
   try {
     if (!name && !description) {
-      //   return res
-      //     .status(responseStatusCodes.badRequest)
-      //     .json({ success: false, message: responseMessages.invalidRequest });
       return res.error(responseMessages.invalidRequest);
     }
     let user = await User.findOne({ where: { user_id: user_id } });
     if (!user) {
-      //   return res
-      //     .status(responseStatusCodes.badRequest)
-      //     .json({ success: false, message: responseMessages.userNotFound });
       return res.error(responseMessages.userNotFound);
     }
     user.name = name;
     user.description = description;
     await user.save();
-    // return res.status(responseStatusCodes.success).json({
-    //   success: true,
-    //   message: responseMessages.profileUpdateSuccessfully,
-    // });
     return res.success(responseMessages.profileUpdateSuccessfully);
   } catch (error) {
-    // return res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ success: false, message: responseMessages.internalServerError });
     return next(error);
   }
 };
@@ -771,19 +490,16 @@ exports.deleteAccount = async (req, res, next) => {
   }
 
   try {
-    // Verify user exists before doing any deletions
     const user = await User.findOne({ where: { user_id } });
     if (!user) {
       return res.error(responseMessages.userNotFound);
     }
 
-    // Get all ad IDs for this user in one query
     const adIds = (await Ad.findAll({
       where: { user_id },
       attributes: ["ad_id"],
     })).map((ad) => ad.ad_id);
 
-    // Delete all ad-related records in parallel
     if (adIds.length) {
       await Promise.all([
         AdImage.destroy({ where: { ad_id: adIds } }),
@@ -793,8 +509,6 @@ exports.deleteAccount = async (req, res, next) => {
         AdView.destroy({ where: { ad_id: adIds } }),
       ]);
     }
-
-    // Delete all user-related records in parallel
     await Promise.all([
       Ad.destroy({ where: { user_id } }),
       ChatMessage.destroy({
@@ -820,28 +534,15 @@ exports.deleteAccount = async (req, res, next) => {
 exports.updateNotificationToken = async (req, res, next) => {
   try {
     const { notification_token } = req.body;
-
-    // if (!notification_token) {
-    //   return res
-    //     .status(responseStatusCodes.badRequest)
-    //     .json({ message: responseMessages.invalidRequest });
-    // }
     const userId = req.user.id;
     const user = await User.findOne({ where: { user_id: userId } });
     if (!user) {
-      //   return res
-      //     .status(responseStatusCodes.badRequest)
-      //     .json({ message: responseMessages.userNotFound });
       return res.error(responseMessages.userNotFound);
     }
     user.notification_token = notification_token;
     await user.save();
-    // res.json({ message: responseMessages.tokenUpdated });
     return res.success(responseMessages.tokenUpdated);
   } catch (error) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
@@ -849,11 +550,6 @@ exports.updateNotificationToken = async (req, res, next) => {
 exports.userWithAds = async (req, res, next) => {
   try {
     const { user_id } = req.body;
-    // if (!user_id) {
-    //   return res
-    //     .status(responseStatusCodes.badRequest)
-    //     .json({ message: responseMessages.invalidRequest });
-    // }
     const user = await User.findOne({
       where: { user_id },
       include: [
@@ -873,27 +569,13 @@ exports.userWithAds = async (req, res, next) => {
       nest: true,
     });
     if (!user) {
-      //   return res
-      //     .status(responseStatusCodes.badRequest)
-      //     .json({ message: responseMessages.userNotFound });
       return res.error(responseMessages.userNotFound);
     }
     const formattedAds = await Promise.all(
       user.dataValues.ads.map((ad) => formatAd(ad)),
     );
-    const fullUrl = `${req.protocol}://${req.get("host")}${
-      req.originalUrl.split("?")[0]
-    }`;
     const ads = user.ads || [];
     const adCount = ads.length;
-
-    const pagination = formatPagination({
-      page: 1,
-      perPage: 10,
-      total: adCount,
-      path: fullUrl,
-    });
-
     const response = {
       id: user.id,
       user_id: user.user_id,
@@ -903,14 +585,9 @@ exports.userWithAds = async (req, res, next) => {
       description: user.description,
       notification_token: user.notification_token,
       ads: formattedAds,
-      ...pagination,
     };
-    // return res.status(responseStatusCodes.success).json(response);
     return res.success(responseMessages.adDetails, response);
   } catch (error) {
-    // return res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
@@ -945,17 +622,9 @@ exports.userWishlists = async (req, res, next) => {
         return await formatAd(ad);
       }),
     );
-
-    // remove null ads (if any)
     const filteredAds = ads.filter(Boolean);
-
-    return res.success(responseMessages.userWishlistFetched, filteredAds);
-    // res.status(responseStatusCodes.success).json(ads);
-    
+    return res.success(responseMessages.userWishlistFetched, filteredAds);   
   } catch (error) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
@@ -963,13 +632,7 @@ exports.userWishlists = async (req, res, next) => {
 exports.removeWishlist = async (req, res, next) => {
   try {
     const { ad_id } = req.body;
-    // if (!ad_id) {
-    //   return res
-    //     .status(responseStatusCodes.badRequest)
-    //     .json({ message: responseMessages.invalidRequest });
-    // }
     const userId = req.user.id;
-
     const wishlistItem = await AdWishLists.findOne({
       where: {
         user_id: userId,
@@ -978,16 +641,11 @@ exports.removeWishlist = async (req, res, next) => {
     });
     if (wishlistItem) {
       await wishlistItem.destroy();
-      //   return res.json({ message: responseMessages.wishlistRemoved });
       return res.success(responseMessages.wishlistRemoved);
     } else {
-      //   return res.json({ message: responseMessages.wishlistAlreadyRemoved });
       return res.success(responseMessages.wishlistAlreadyRemoved);
     }
   } catch (error) {
-    // return res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
@@ -995,18 +653,10 @@ exports.removeWishlist = async (req, res, next) => {
 exports.viewContact = async (req, res, next) => {
   try {
     const { userId } = req.body;
-    // if (!userId) {
-    //   return res
-    //     .status(responseStatusCodes.badRequest)
-    //     .json({ message: responseMessages.invalidRequest });
-    // }
     console.log(req.user)
     const viewerId = req.user.id;
     const user = await User.findOne({ where: { user_id: userId } });
     if (!user) {
-      //   return res
-      //     .status(responseStatusCodes.badRequest)
-      //     .json({ message: responseMessages.userNotFound });
       return res.error(responseMessages.userNotFound);
     }
     let profileUrl;
@@ -1040,14 +690,8 @@ exports.viewContact = async (req, res, next) => {
       isBlockedByOther: !!isBlockedByOther,
       isYouBlockedOther: !!isYouBlockedOther,
     };
-    // return res
-    //   .status(responseStatusCodes.success)
-    //   .json({ message: responseMessages.userDetails, data: response });
     return res.success(responseMessages.userDetails, response);
   } catch (error) {
-    // return res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
@@ -1066,10 +710,6 @@ exports.createOrUpdateReferralCode = async (req, res, next) => {
     const { user_id } = req.body;
 
     if (!user_id) {
-      //   return res.status(responseStatusCodes.badRequest).json({
-      //     success: false,
-      //     message: "user_id is required",
-      //   });
       return res.error(responseMessages.invalidRequest);
     }
     const referral_code = generateReferralCode();
@@ -1078,31 +718,14 @@ exports.createOrUpdateReferralCode = async (req, res, next) => {
     if (existing) {
       existing.referral_code = referral_code;
       await existing.save();
-
-      //   return res.status(responseStatusCodes.success).json({
-      //     success: true,
-      //     message: "Referral code updated successfully",
-      //     data: existing,
-      //   });
       return res.success("Referral code updated successfully", existing);
     }
     const newReferral = await ReferralCode.create({
       user_id,
       referral_code,
     });
-
-    // return res.status(responseStatusCodes.created).json({
-    //   success: true,
-    //   message: "Referral code created successfully",
-    //   data: newReferral,
-    // });
     return res.success("Referral code created successfully", newReferral);
   } catch (error) {
-    // return res.status(responseStatusCodes.internalServerError).json({
-    //   success: false,
-    //   message: "Internal server error",
-    //   error: error.message,
-    // });
     return next(error);
   }
 };
