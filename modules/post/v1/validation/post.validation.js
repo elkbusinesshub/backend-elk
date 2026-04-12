@@ -1,4 +1,11 @@
 const joi = require("joi");
+const paginationSchema = joi.object({
+  page: joi.number().integer().min(1).optional(),
+  perPage: joi.number().integer().min(1).optional(),
+
+  limit: joi.number().integer().min(1).optional(),
+  offset: joi.number().integer().min(0).optional(),
+});
 
 module.exports = {
   createAdValidator: async (req, res, next) => {
@@ -105,8 +112,10 @@ module.exports = {
         latitude: joi.number().optional(),
         longitude: joi.number().optional(),
         limit: joi.number().integer().min(1).optional(),
-       id: joi.number().integer().optional(),
+        id: joi.number().integer().optional(),
         offset: joi.number().integer().min(0).optional(),
+        page: joi.number().integer().min(1).optional(),
+        perPage: joi.number().integer().min(1).optional(),
       });
 
       await schema.validateAsync(req.body);
@@ -130,6 +139,8 @@ module.exports = {
         keyword: joi.string().allow('').empty('').default(null).optional(),
         limit: joi.number().integer().min(1).default(1).optional(),
         offset: joi.number().integer().min(0).default(0).optional(),
+        page: joi.number().integer().min(1).optional(),
+        perPage: joi.number().integer().min(1).optional(),
         user_id: joi.string().optional(),
         min_price: joi.number().optional(),
         max_price: joi.number().optional(),
@@ -170,6 +181,8 @@ module.exports = {
           longitude: joi.number().optional(),
           limit: joi.number().integer().min(1).default(1),
           offset: joi.number().integer().min(0),
+          page: joi.number().integer().min(1).optional(),
+          perPage: joi.number().integer().min(1).optional(),
           user_id: joi.number().optional(),
         })
         .custom((value, helpers) => {
@@ -211,7 +224,8 @@ module.exports = {
 
           offset: joi.number().integer().min(0).default(0),
           limit: joi.number().integer(),
-
+          page: joi.number().integer().min(1).optional(),
+          perPage: joi.number().integer().min(1).optional(),
           min_price: joi.number().min(0).optional(),
 
           max_price: joi.number().min(0).optional(),
