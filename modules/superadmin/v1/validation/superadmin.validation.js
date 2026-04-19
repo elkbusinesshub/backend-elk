@@ -76,6 +76,7 @@ module.exports = {
     try {
       const schema = joi.object({
         id: joi.number().required(),
+        category: joi.string().required(),
         title: joi.string().optional(),
         description: joi.string().optional(),
         ad_price_details: joi.any().optional(),
