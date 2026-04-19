@@ -36,7 +36,7 @@ module.exports = {
         email: joi.string().required(),
         uuid: joi.string().required(),
         name: joi.string().min(2).max(100).required().label("Name"),
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.body);
       return next();
