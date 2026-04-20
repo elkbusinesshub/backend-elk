@@ -8,7 +8,7 @@ module.exports = {
         location: joi.string().optional().allow(""),
         limit: joi.number().required(),
         offset: joi.number().required(),
-      });
+      }).unknown(true);
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -19,7 +19,7 @@ module.exports = {
     try {
       const schema = joi.object({
         id: joi.string().required(),
-      });
+      }).unknown(true);
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -30,7 +30,7 @@ module.exports = {
     try {
       const schema = joi.object({
         id: joi.number().required(),
-      });
+      }).unknown(true);
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -42,7 +42,7 @@ module.exports = {
       const schema = joi.object({
         user_id: joi.number().required(),
         role: joi.string().required(),
-      });
+      }).unknown(true);
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -54,7 +54,7 @@ module.exports = {
       const schema = joi.object({
         offset: joi.number().optional(),
         limit: joi.number().optional(),
-      });
+      }).unknown(true);
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -65,7 +65,7 @@ module.exports = {
     try {
       const schema = joi.object({
         id: joi.number().required(),
-      });
+      }).unknown(true);
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -80,7 +80,7 @@ module.exports = {
         title: joi.string().optional(),
         description: joi.string().optional(),
         ad_price_details: joi.any().optional(),
-      });
+      }).unknown(true);
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -91,7 +91,7 @@ module.exports = {
     try {
       const schema = joi.object({
         id: joi.number().required(),
-      });
+      }).unknown(true);
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {

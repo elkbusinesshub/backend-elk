@@ -21,7 +21,7 @@ module.exports = {
         location: joi.string().required().messages({
           "any.required": "Location data is required"
         })
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.body);
 
@@ -60,7 +60,7 @@ module.exports = {
         })
       ).min(1).required().messages({
         "array.min": "At least one ad is required"
-      });
+      }).unknown(true);
 
       const parsedAds = JSON.parse(req.body.ads);
       await adsSchema.validateAsync(parsedAds);

@@ -31,7 +31,7 @@ const validateAddChat = async (req, res, next) => {
         "any.required": "status is required",
         "string.empty": "status is required",
       }),
-    });
+    }).unknown(true);
 
     await schema.validateAsync(req.body);
     return next();
@@ -51,7 +51,7 @@ const validateGetChat = async (req, res, next) => {
         "any.required": "otherUserId is required",
         "string.empty": "otherUserId is required",
       }),
-    });
+    }).unknown(true);
 
     await schema.validateAsync(req.query);
     return next();
@@ -67,7 +67,7 @@ const validateChatRooms = async (req, res, next) => {
         "any.required": "authUserId is required",
         "string.empty": "authUserId is required",
       }),
-    });
+    }).unknown(true);
 
     await schema.validateAsync(req.query);
     return next();
@@ -83,7 +83,7 @@ const validateUnreadCount = async (req, res, next) => {
         "any.required": "authUserId is required",
         "string.empty": "authUserId is required",
       }),
-    });
+    }).unknown(true);
 
     await schema.validateAsync(req.query);
     return next();
@@ -104,7 +104,7 @@ const validateBlockUnblock = async (req, res, next) => {
         "string.empty": "otherUserId is required",
       }),
       reason: joi.string().allow(null).optional(),
-    });
+    }).unknown(true);
 
     await schema.validateAsync(req.body);
     return next();
@@ -124,7 +124,7 @@ const validateIsBlocked = async (req, res, next) => {
         "any.required": "blockedId is required",
         "string.empty": "blockedId is required",
       }),
-    });
+    }).unknown(true);
 
     await schema.validateAsync(req.query);
     return next();

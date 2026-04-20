@@ -6,7 +6,7 @@ module.exports = {
       const schema = joi.object({
         longitude: joi.number().required(),
         latitude: joi.number().required(),
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.body);
       return next();
@@ -19,7 +19,7 @@ module.exports = {
       const schema = joi.object({
         query: joi.string().required(),
         limited: joi.boolean().optional()
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.body);
       return next();
@@ -49,7 +49,7 @@ module.exports = {
           }),
           otherwise: joi.optional(),
         }),
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.query);
       return next();
