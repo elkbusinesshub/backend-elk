@@ -367,7 +367,7 @@ const getSalesUserById = async (req, res, next) => {
 const updateAd = async (req, res, next) => {
   try {
     const { id, title, description } = req.body;
-    let { ad_price_details } = req.body;
+    let { ad_price_details, deleted_image_ids } = req.body;
 
     const ad = await Ad.findOne({
       where: { id },
@@ -423,17 +423,31 @@ const updateAd = async (req, res, next) => {
       }
     }
 
+    // ── DELETE IMAGES ────────────────────────────────────────────
+    if (deleted_image_ids) {
+      const parsedDeletedIds =
+        typeof deleted_image_ids === "string"
+          ? JSON.parse(deleted_image_ids)
+          : deleted_image_ids;
+
+      if (Array.isArray(parsedDeletedIds) && parsedDeletedIds.length > 0) {
+        await AdImage.destroy({
+          where: { id: parsedDeletedIds },
+        });
+      }
+    }
+
+    // ── UPLOAD NEW IMAGES ─────────────────────────────────────────
     if (req.files && req.files.length > 0) {
       const uploadedImages = [];
 
       for (const file of req.files) {
-        const fileName = `ads/${Date.now()}-${file.originalname}`;
-
-        await uploadToS3(file.buffer, fileName, file.mimetype);
+        const fileName = `${Date.now()}-${file.originalname}`;
+        const { finalFilename } = await uploadToS3(file, fileName);
 
         uploadedImages.push({
           ad_id: ad.ad_id,
-          image: fileName,
+          image: finalFilename,
         });
       }
 

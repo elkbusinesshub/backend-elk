@@ -80,6 +80,13 @@ module.exports = {
         title: joi.string().optional(),
         description: joi.string().optional(),
         ad_price_details: joi.any().optional(),
+        deleted_image_ids: joi
+          .alternatives()
+          .try(
+            joi.string().optional(),
+            joi.array().items(joi.number()).optional(),
+          )
+          .optional(),
       });
       await schema.validateAsync(req.body);
       return next();
