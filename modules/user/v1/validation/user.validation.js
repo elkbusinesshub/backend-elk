@@ -5,7 +5,7 @@ module.exports = {
     try {
       const schema = joi.object({
         mobile: joi.string().required(),
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.body);
       return next();
@@ -21,7 +21,7 @@ module.exports = {
         otp: joi.string().length(6).required().label("OTP"),
         name: joi.string().min(2).max(100).optional().label("Name"),
         referralCode: joi.string().optional().allow(null, "").label("Referral Code"),
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.body);
       return next();
@@ -36,7 +36,7 @@ module.exports = {
         email: joi.string().required(),
         uuid: joi.string().required(),
         name: joi.string().min(2).max(100).required().label("Name"),
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.body);
       return next();
@@ -48,7 +48,7 @@ module.exports = {
     try {
       const schema = joi.object({
         id: joi.string().required(),
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.query);
       return next();
@@ -60,7 +60,7 @@ module.exports = {
     try {
       const schema = joi.object({
         id: joi.string().required(),
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.query);
       return next();
@@ -73,7 +73,7 @@ module.exports = {
       const schema = joi.object({
         verificationId: joi.string().required(),
         otp: joi.string().required(),
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.body);
       return next();
@@ -88,7 +88,7 @@ module.exports = {
         uuid: joi.string().optional(),
         mobile: joi.string().optional(),
         user_id: joi.string().required(),
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.body);
       return next();
@@ -102,7 +102,7 @@ module.exports = {
         name: joi.string().min(2).max(100).required().label("Name"),
         description: joi.string().min(2).max(100).required(),
         user_id: joi.number().required(),
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.body);
       return next();
@@ -114,7 +114,7 @@ module.exports = {
     try {
       const schema = joi.object({
         notification_token: joi.string().required(),
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.body);
       return next();
@@ -126,7 +126,7 @@ module.exports = {
     try {
       const schema = joi.object({
         user_id: joi.number().required(),
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.body);
       return next();
@@ -138,7 +138,7 @@ module.exports = {
     try {
       const schema = joi.object({
         ad_id: joi.number().required(),
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.body);
       return next();
@@ -150,7 +150,7 @@ module.exports = {
     try {
       const schema = joi.object({
         userId: joi.number().required(),
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.body);
       return next();
@@ -162,7 +162,7 @@ module.exports = {
     try {
       const schema = joi.object({
         user_id: joi.string().required(),
-      });
+      }).unknown(true);
 
       await schema.validateAsync(req.query);
       return next();

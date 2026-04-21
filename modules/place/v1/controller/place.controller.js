@@ -62,7 +62,7 @@ exports.getPlace = async (req, res, next) => {
   try {
     const response = await axios.get(
       `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json`,
-      { params: { access_token: mapBoxToken } }
+      { params: { access_token: mapBoxToken, language: 'en' } }
     );
 
     const places = response.data.features;
