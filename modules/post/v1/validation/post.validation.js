@@ -3,16 +3,18 @@ const joi = require("joi");
 module.exports = {
   createAdValidator: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        ad_id: joi.number().allow(null).default(null).optional(),
-        title: joi.string().required(),
-        description: joi.string().required(),
-        ad_type: joi.string().required(),
-        category: joi.string().required(),
-        ad_prices: joi.any().required(),
-        ad_status: joi.string().allow(null).optional(),
-        ad_stage: joi.number().allow(null).optional(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          ad_id: joi.number().allow(null).default(null).optional(),
+          title: joi.string().required(),
+          description: joi.string().required(),
+          ad_type: joi.string().required(),
+          category: joi.string().required(),
+          ad_prices: joi.any().required(),
+          ad_status: joi.string().allow(null).optional(),
+          ad_stage: joi.number().allow(null).optional(),
+        })
+        .unknown(true);
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -22,11 +24,13 @@ module.exports = {
 
   updateAdImageValidator: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        ad_id: joi.string().required(),
-        ad_status: joi.string().optional(),
-        ad_stage: joi.number().optional(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          ad_id: joi.string().required(),
+          ad_status: joi.string().optional(),
+          ad_stage: joi.number().optional(),
+        })
+        .unknown(true);
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -36,18 +40,20 @@ module.exports = {
 
   updateAdAddressValidator: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        ad_id: joi.number().required(),
-        ad_stage: joi.number().allow(null).optional(),
-        ad_status: joi.string().allow(null).optional(),
-        country: joi.string().required(),
-        latitude: joi.number().required(),
-        longitude: joi.number().required(),
-        state: joi.string().allow("").optional(),
-        district: joi.string().allow("").optional(),
-        locality: joi.string().allow("").optional(),
-        place: joi.string().allow("").optional(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          ad_id: joi.number().required(),
+          ad_stage: joi.number().allow(null).optional(),
+          ad_status: joi.string().allow(null).optional(),
+          country: joi.string().required(),
+          latitude: joi.number().required(),
+          longitude: joi.number().required(),
+          state: joi.string().allow("").optional(),
+          district: joi.string().allow("").optional(),
+          locality: joi.string().allow("").optional(),
+          place: joi.string().allow("").optional(),
+        })
+        .unknown(true);
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -56,10 +62,12 @@ module.exports = {
   },
   getAdDetailsValidator: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        ad_id: joi.number().optional(),
-        user_id: joi.number().optional(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          ad_id: joi.number().optional(),
+          user_id: joi.number().optional(),
+        })
+        .unknown(true);
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -68,9 +76,11 @@ module.exports = {
   },
   deleteAdImageValidator: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        id: joi.string().required(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          id: joi.string().required(),
+        })
+        .unknown(true);
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -79,9 +89,11 @@ module.exports = {
   },
   deleteAdValidator: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        adId: joi.string().required(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          adId: joi.string().required(),
+        })
+        .unknown(true);
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -90,9 +102,11 @@ module.exports = {
   },
   changeOnlineStatusValidator: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        ad_id: joi.string().required(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          ad_id: joi.string().required(),
+        })
+        .unknown(true);
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -101,13 +115,15 @@ module.exports = {
   },
   recommentedPostsValidator: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        latitude: joi.number().optional(),
-        longitude: joi.number().optional(),
-        limit: joi.number().integer().min(1).optional(),
-       id: joi.number().integer().optional(),
-        offset: joi.number().integer().min(0).optional(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          latitude: joi.number().optional(),
+          longitude: joi.number().optional(),
+          limit: joi.number().integer().min(1).optional(),
+          id: joi.number().integer().optional(),
+          offset: joi.number().integer().min(0).optional(),
+        })
+        .unknown(true);
 
       await schema.validateAsync(req.body);
       return next();
@@ -126,8 +142,8 @@ module.exports = {
         location: joi.string().optional(),
         latitude: joi.number().optional(),
         longitude: joi.number().optional(),
-        category: joi.string().allow('').empty('').default(null).optional(),
-        keyword: joi.string().allow('').empty('').default(null).optional(),
+        category: joi.string().allow("").empty("").default(null).optional(),
+        keyword: joi.string().allow("").empty("").default(null).optional(),
         limit: joi.number().integer().min(1).default(1).optional(),
         offset: joi.number().integer().min(0).default(0).optional(),
         user_id: joi.number().optional(),
@@ -143,13 +159,15 @@ module.exports = {
   },
   searchCategoriesValidator: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        ad_type: joi.string().required().messages({
-          "any.required": "Ad type is required",
-          "string.empty": "Ad type is required",
-        }),
-        keyword: joi.string().required(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          ad_type: joi.string().required().messages({
+            "any.required": "Ad type is required",
+            "string.empty": "Ad type is required",
+          }),
+          keyword: joi.string().required(),
+        })
+        .unknown(true);
 
       await schema.validateAsync(req.body);
       return next();
@@ -163,7 +181,7 @@ module.exports = {
         .object({
           location_type: joi
             .string()
-            .valid("state", "city", "locality", "place","country")
+            .valid("state", "city", "locality", "place", "country")
             .optional(),
           location: joi.string().optional(),
           latitude: joi.number().optional(),
@@ -173,26 +191,29 @@ module.exports = {
           user_id: joi.number().optional(),
         })
         .custom((value, helpers) => {
-          const hasAny =
-            value.location_type ||
-            value.location ||
-            value.latitude ||
-            value.longitude;
-          const hasAll =
-            value.location_type &&
-            value.location &&
-            value.latitude &&
-            value.longitude;
+          const { location_type, location, latitude, longitude } = value;
 
-          if (hasAny && !hasAll) {
+          // If any of the "text" location fields are partially provided, enforce all four
+          const hasTextLocation = location_type || location;
+          const hasCoords = latitude || longitude;
+
+          if (hasTextLocation && (!location_type || !location)) {
             return helpers.error("any.custom", {
-              message:
-                "location_type, location, latitude, and longitude are all required when filtering by location",
+              message: "Both location_type and location are required together",
+            });
+          }
+
+          if (
+            hasCoords &&
+            (latitude === undefined || longitude === undefined)
+          ) {
+            return helpers.error("any.custom", {
+              message: "Both latitude and longitude are required together",
             });
           }
 
           return value;
-        }).unknown(true);
+        });
 
       await schema.validateAsync(req.body);
       return next();
@@ -227,7 +248,8 @@ module.exports = {
             });
           }
           return value;
-        }).unknown(true);
+        })
+        .unknown(true);
 
       await schema.validateAsync(req.body);
       return next();
@@ -237,9 +259,11 @@ module.exports = {
   },
   addToWishlistValidator: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        ad_id: joi.number().required(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          ad_id: joi.number().required(),
+        })
+        .unknown(true);
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
