@@ -415,14 +415,14 @@ exports.myAds = async (req, res, next) => {
         {
           model: User,
           as: "user",
-          attributes: ["id", "name", "email", "mobile_number", "profile"],
+          // attributes: ["id", "name", "email", "mobile_number", "profile"],
         },
-        { model: AdImage, as: "ad_images", attributes: ["image"] },
+        { model: AdImage, as: "ad_images"}, //attributes: ["image"] },
         { model: AdLocation, as: "ad_location" },
         {
           model: AdPriceDetails,
           as: "ad_price_details",
-          attributes: ["rent_price", "rent_duration"],
+          // attributes: ["rent_price", "rent_duration"],
         },
       ],
       nest: true,
