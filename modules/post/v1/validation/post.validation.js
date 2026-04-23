@@ -130,7 +130,7 @@ module.exports = {
         keyword: joi.string().allow('').empty('').default(null).optional(),
         limit: joi.number().integer().min(1).default(1).optional(),
         offset: joi.number().integer().min(0).default(0).optional(),
-        user_id: joi.string().optional(),
+        user_id: joi.number().optional(),
         min_price: joi.number().optional(),
         max_price: joi.number().optional(),
       });
