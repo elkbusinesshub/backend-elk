@@ -147,7 +147,6 @@ exports.updateAdImage = async (req, res, next) => {
       adImages = [{ ad_id, image: "1761544844899520_auto.png" }];
     }
 
-
     await Promise.all([
       Ad.update(
         {
@@ -181,20 +180,11 @@ exports.updateAdImage = async (req, res, next) => {
   }
 };
 
-//done
 exports.deletAdImage = async (req, res, next) => {
   const { id } = req.body;
-  //   if (!id) {
-  //     return res
-  //       .status(responseStatusCodes.badRequest)
-  //       .json({ message: responseMessages.invalidRequest });
-  //   }
   try {
     const data = await AdImage.findOne({ where: { id } });
     if (!data) {
-      //   return res
-      //     .status(responseStatusCodes.notFound)
-      //     .json({ success: false, message: responseMessages.imageNotFound });
       return res.error(
         responseMessages.imageNotFound,
         null,
@@ -203,14 +193,8 @@ exports.deletAdImage = async (req, res, next) => {
     }
     await deleteImageFromS3(data.image);
     await AdImage.destroy({ where: { id } });
-    // return res
-    //   .status(responseStatusCodes.success)
-    //   .json({ success: true, message: responseMessages.imageDeleted });
     return res.success(responseMessages.imageDeleted);
   } catch (err) {
-    // return res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ success: false, message: responseMessages.internalServerError });
     return next(err);
   }
 };
@@ -315,7 +299,6 @@ exports.updateAdAddress = async (req, res, next) => {
   }
 };
 
-//done
 exports.deleteAd = async (req, res, next) => {
   try {
     const { adId } = req.body;
@@ -351,7 +334,6 @@ exports.deleteAd = async (req, res, next) => {
   }
 };
 
-//done
 exports.getAdDetails = async (req, res, next) => {
   try {
     const { ad_id, user_id: userId } = req.body;
@@ -524,15 +506,11 @@ exports.searchCategories = async (req, res, next) => {
 //done
 exports.recommentedPosts = async (req, res, next) => {
   try {
-    // const page = Math.max(1, parseInt(req.body.page) || 1);
-    // const perPage = 16;
-    // const offset = (page - 1) * perPage;
     const userId = req.body.id;
 
     const limit = parseInt(req.body.limit) || 10;
     const offset = Math.max(parseInt(req.body.offset) || 0, 0);
 
-    // Validate and sanitize coordinates to prevent SQL injection
     const userLat = req.body.latitude ? parseFloat(req.body.latitude) : null;
     const userLng = req.body.longitude ? parseFloat(req.body.longitude) : null;
 
@@ -540,17 +518,14 @@ exports.recommentedPosts = async (req, res, next) => {
       (userLat && (isNaN(userLat) || userLat < -90 || userLat > 90)) ||
       (userLng && (isNaN(userLng) || userLng < -180 || userLng > 180))
     ) {
-      // return res.status(400).json({ message: 'Invalid coordinates' });
       return res.error(responseMessages.invalidCoordinates);
     }
 
-    // 2. PARALLEL DATA FETCHING - Fetch blocked users and searches simultaneously
     const [userSearches, blockedUserIds] = await Promise.all([
       userId ? fetchUserSearches(userId) : Promise.resolve([]),
       userId ? fetchBlockedUserIds(userId) : Promise.resolve([]),
     ]);
 
-    // 3. BUILD OPTIMIZED QUERY
     const adsQuery = buildAdsQuery({
       userId,
       blockedUserIds,
@@ -561,19 +536,7 @@ exports.recommentedPosts = async (req, res, next) => {
       offset,
     });
 
-    // 4. EXECUTE QUERY
     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
-
-    // 5. FORMAT RESPONSE
-    // const fullUrl = `${req.protocol}://${req.get("host")}${req.originalUrl.split("?")[0]}`;
-    // const pagination = formatPagination({
-    //   page,
-    //   perPage,
-    //   total: count,
-    //   path: fullUrl,
-    // });
-
-    // 6. FORMAT ADS (no async operations inside formatAd now)
     const formattedAds = ads.map((ad) => formatAd(ad));
 
     return res.success(responseMessages.recommentedPosts, {
@@ -643,78 +606,6 @@ exports.getAllPosts = async (req, res, next) => {
   }
 };
 
-// exports.searchAds = async (req, res, next) => {
-//   try {
-//     const { keyword, page = 1, min_price, max_price } = req.body;
-//     // if (!keyword) {
-//     //   return res
-//     //     .status(responseStatusCodes.badRequest)
-//     //     .json({ message: responseMessages.invalidRequest });
-//     // }
-
-//     const perPage = 15;
-//     const offset = (page - 1) * perPage;
-
-//     let adsQuery = {
-//       where: {
-//         ad_status: "online",
-//         ad_stage: 3,
-//       },
-//       include: [
-//         { model: User, as: "user" },
-//         { model: AdImage, as: "ad_images" },
-//         {
-//           model: AdPriceDetails,
-//           as: "ad_price_details",
-//           // where: {
-//           //     ...(min_price !== undefined ? { rent_price: { [Op.gte]: Number(min_price) } } : {}),
-//           //     ...(max_price !== undefined ? { rent_price: { ...(min_price !== undefined ? { [Op.gte]: Number(min_price), [Op.lte]: Number(max_price) } : { [Op.lte]: Number(max_price) }) } } : {})
-//           // },
-//         },
-//         { model: AdLocation, as: "ad_location" },
-//       ],
-//       distinct: true,
-//       limit: perPage,
-//       offset: offset,
-//     };
-
-//     if (!isNaN(keyword)) {
-//       adsQuery.where.ad_id = Number(keyword);
-//     } else {
-//       adsQuery.where[Op.or] = [
-//         { title: { [Op.like]: `%${keyword}%` } },
-//         { category: { [Op.like]: `%${keyword}%` } },
-//         { description: { [Op.like]: `%${keyword}%` } },
-//       ];
-//     }
-//     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
-//     const formattedAds = await Promise.all(ads.map((ad) => formatAd(ad)));
-//     const fullUrl = `${req.protocol}://${req.get("host")}${
-//       req.originalUrl.split("?")[0]
-//     }`;
-//     const pagination = formatPagination({
-//       page: Number(page),
-//       perPage,
-//       total: count,
-//       path: fullUrl,
-//     });
-//     // res.status(responseStatusCodes.success).json({
-//     //   ...pagination,
-//     //   data: formattedAds,
-//     // });
-//     return res.success(responseMessages.searchCategories, {
-//       pagination,
-//       data: formattedAds,
-//     });
-//     // res.status(responseStatusCodes.success).json(response);
-//   } catch (error) {
-//     // res
-//     //   .status(responseStatusCodes.internalServerError)
-//     //   .json({ message: responseMessages.internalServerError });
-//     return next(error);
-//   }
-// };
-
 exports.searchAds = async (req, res, next) => {
   try {
     const { keyword, limit = 15, offset = 0, min_price, max_price } = req.body;
@@ -777,218 +668,6 @@ exports.searchAds = async (req, res, next) => {
     return next(error);
   }
 };
-
-// exports.rentCategoryPosts = async (req, res, next) => {
-//   try {
-//     const {
-//       ad_type,
-//       location_type,
-//       location,
-//       latitude,
-//       longitude,
-//       category,
-//       keyword,
-//       page = 1,
-//       user_id,
-//       min_price,
-//       max_price,
-//     } = req.body;
-//     const perPage = 15;
-//     const offset = (page - 1) * perPage;
-//     if (user_id) {
-//       await UserSearch.create({
-//         user_id: user_id,
-//         keyword: req.body.keyword || "",
-//         category: req.body.category || "",
-//         ad_type: req.body.ad_type,
-//         location_type: req.body.location_type || "",
-//         location: req.body.location || "",
-//         latitude: req.body.latitude || null,
-//         longitude: req.body.longitude || null,
-//       });
-//     }
-//     let blockedUserIds = [];
-//     if (user_id) {
-//       const blockedRecords = await BlockedUser.findAll({
-//         where: {
-//           [Op.or]: [{ blocker_id: user_id }, { blocked_id: user_id }],
-//         },
-//         raw: true,
-//       });
-
-//       blockedUserIds = blockedRecords.map((record) =>
-//         record.blocker_id !== user_id ? record.blocked_id : record.blocker_id,
-//       );
-//     }
-//     let response;
-//     let adsQuery;
-//     const allAds = await Ad.findAll({ attributes: ["ad_id"] });
-//     const allAdIds = allAds.map((ad) => ad.ad_id);
-//     if (keyword && allAdIds.includes(Number(keyword))) {
-//       adsQuery = {
-//         where: {
-//           ad_id: Number(keyword),
-//           ad_stage: 3,
-//           [Op.and]: [{ [Op.notIn]: blockedUserIds }],
-//         },
-//         include: [
-//           { model: User, as: "user" },
-//           { model: AdImage, as: "ad_images" },
-//           {
-//             model: AdPriceDetails,
-//             as: "ad_price_details",
-//             // where: {
-//             //     ...(min_price !== undefined ? { rent_price: { [Op.gte]: Number(min_price) } } : {}),
-//             //     ...(max_price !== undefined ? { rent_price: { ...(min_price !== undefined ? { [Op.gte]: Number(min_price), [Op.lte]: Number(max_price) } : { [Op.lte]: Number(max_price) }) } } : {})
-//             // },
-//           },
-//           { model: AdLocation, as: "ad_location" },
-//         ],
-//         distinct: true,
-//         limit: perPage,
-//         offset: offset,
-//       };
-//     } else if (!location_type || !location || !latitude || !longitude) {
-//       adsQuery = {
-//         where: {
-//           ad_type: ad_type,
-//           ad_status: "online",
-//           ad_stage: 3,
-//         },
-//         include: [
-//           { model: User, as: "user" },
-//           { model: AdImage, as: "ad_images" },
-//           {
-//             model: AdPriceDetails,
-//             as: "ad_price_details",
-//             // where: {
-//             //     ...(min_price !== undefined ? { rent_price: { [Op.gte]: Number(min_price) } } : {}),
-//             //     ...(max_price !== undefined ? { rent_price: { ...(min_price !== undefined ? { [Op.gte]: Number(min_price), [Op.lte]: Number(max_price) } : { [Op.lte]: Number(max_price) }) } } : {})
-//             // },
-//           },
-//           { model: AdLocation, as: "ad_location" },
-//         ],
-//         distinct: true,
-//         limit: perPage,
-//         offset: offset,
-//       };
-//       if (category) adsQuery.where.category = category;
-//       if (keyword) {
-//         adsQuery.where[Op.or] = [
-//           { category: { [Op.like]: `%${keyword}%` } },
-//           { title: { [Op.like]: `%${keyword}%` } },
-//           { description: { [Op.like]: `%${keyword}%` } },
-//         ];
-//       }
-//     } else {
-//       adsQuery = {
-//         where: {
-//           ad_type: ad_type,
-//           ad_status: "online",
-//           ad_stage: 3,
-//         },
-//         attributes: {
-//           include: [
-//             [
-//               literal(`(
-//                                 SELECT (6371 *
-//                                     acos(cos(radians(${latitude})) * cos(radians(ad_location.latitude)) *
-//                                     cos(radians(ad_location.longitude) - radians(${longitude})) +
-//                                     sin(radians(${latitude})) * sin(radians(ad_location.latitude)))
-//                                 ) AS distance
-//                             )`),
-//               "distance",
-//             ],
-//           ],
-//         },
-//         include: [
-//           { model: User, as: "user" },
-//           { model: AdImage, as: "ad_images" },
-//           {
-//             model: AdPriceDetails,
-//             as: "ad_price_details",
-//             // where: {
-//             //     ...(min_price !== null ? { rent_price: { [Op.gte]: Number(min_price) } } : {}),
-//             //     ...(max_price !== null ? { rent_price: { ...(min_price !== null ? { [Op.gte]: Number(min_price), [Op.lte]: Number(max_price) } : { [Op.lte]: Number(max_price) }) } } : {})
-//             // },
-//           },
-//         ],
-//         order: [[sequelize.literal("distance"), "ASC"]],
-//         distinct: true,
-//         limit: perPage,
-//         offset: offset,
-//       };
-//       if (category) adsQuery.where.category = category;
-//       if (keyword) {
-//         adsQuery.where = {
-//           ...adsQuery.where,
-//           [Op.or]: [
-//             { category: { [Op.like]: `%${keyword}%` } },
-//             { title: { [Op.like]: `%${keyword}%` } },
-//             { description: { [Op.like]: `%${keyword}%` } },
-//           ],
-//         };
-//       }
-//       if (location_type === "locality" || location_type === "place") {
-//         adsQuery.include.push({
-//           model: AdLocation,
-//           as: "ad_location",
-//           where: {
-//             [Op.or]: [{ locality: location }, { place: location }],
-//           },
-//         });
-//       } else {
-//         adsQuery.include.push({
-//           model: AdLocation,
-//           as: "ad_location",
-//           where: {
-//             [Op.or]: [{ state: location }, { country: location }],
-//           },
-//         });
-//       }
-//     }
-//     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
-
-//     const userId = user_id;
-//     let wishListAdIds;
-//     if (userId) {
-//       const wishLists = await AdWishLists.findAll({
-//         where: { user_id: userId },
-//         attributes: ["ad_id"],
-//       });
-//       wishListAdIds = wishLists.map((wishList) => wishList.ad_id);
-//       ads.map((ad) => {
-//         ad.wishListed = wishListAdIds.includes(ad.ad_id);
-//         if (ad.user) {
-//           ad.user = ad.user.toJSON();
-//           delete ad.user.token;
-//         }
-//       });
-//     }
-//     const formattedAds = await Promise.all(
-//       ads.map((ad) => formatAd(ad, { userId: user_id, wishListAdIds })),
-//     );
-//     const fullUrl = `${req.protocol}://${req.get("host")}${
-//       req.originalUrl.split("?")[0]
-//     }`;
-//     response = {
-//       pagination: formatPagination({
-//         page: Number(page),
-//         perPage,
-//         total: count,
-//         path: fullUrl,
-//       }),
-//       data: formattedAds,
-//     };
-//     // res.status(responseStatusCodes.success).json(response);
-//     return res.success(responseMessages.rentCategoryPosts, response);
-//   } catch (error) {
-//     // res
-//     //   .status(responseStatusCodes.internalServerError)
-//     //   .json({ message: responseMessages.internalServerError });
-//     return next(error);
-//   }
-// };
 
 exports.rentCategoryPosts = async (req, res, next) => {
   try {
@@ -1136,12 +815,13 @@ exports.rentCategoryPosts = async (req, res, next) => {
           include: [
             [
               literal(`(
-                SELECT (6371 *
-                  acos(cos(radians(${userLat})) * cos(radians(ad_location.latitude)) *
-                  cos(radians(ad_location.longitude) - radians(${userLng})) +
-                  sin(radians(${userLat})) * sin(radians(ad_location.latitude)))
-                )
-              `),
+          6371 *
+          acos(
+            cos(radians(${userLat})) * cos(radians(\`ad_location\`.\`latitude\`)) *
+            cos(radians(\`ad_location\`.\`longitude\`) - radians(${userLng})) +
+            sin(radians(${userLat})) * sin(radians(\`ad_location\`.\`latitude\`))
+          )
+        )`),
               "distance",
             ],
           ],

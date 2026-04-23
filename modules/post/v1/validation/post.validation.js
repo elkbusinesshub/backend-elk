@@ -133,7 +133,7 @@ module.exports = {
         user_id: joi.string().optional(),
         min_price: joi.number().optional(),
         max_price: joi.number().optional(),
-      }).unknown(true);
+      });
 
       await schema.validateAsync(req.body);
       return next();
