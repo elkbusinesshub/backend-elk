@@ -96,6 +96,8 @@ exports.getPlace = async (req, res, next) => {
 
     return res.success(responseMessages.loactionDataFetched, results[0]);
   } catch (error) {
+    console.log('Error: ', error);
+    
     return next(error);
   }
 };

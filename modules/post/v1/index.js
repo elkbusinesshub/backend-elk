@@ -19,7 +19,11 @@ router.post(
   validation.updateAdAddressValidator,
   postController.updateAdAddress
 );
-router.get("/my_ads", authentication, postController.myAds);
+router.get(
+  "/my_ads",
+  authentication,
+  postController.myAds
+);
 router.post(
   "/get_ad_details",
   validation.getAdDetailsValidator,

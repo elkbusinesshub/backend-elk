@@ -10,7 +10,7 @@ module.exports = {
           limit: joi.number().required(),
           offset: joi.number().required(),
         })
-        .unknown(true);
+        ;
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -23,7 +23,7 @@ module.exports = {
         .object({
           id: joi.string().required(),
         })
-        .unknown(true);
+        ;
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -36,7 +36,7 @@ module.exports = {
         .object({
           id: joi.number().required(),
         })
-        .unknown(true);
+        ;
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -50,7 +50,7 @@ module.exports = {
           user_id: joi.number().required(),
           role: joi.string().required(),
         })
-        .unknown(true);
+        ;
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -64,7 +64,7 @@ module.exports = {
           offset: joi.number().optional(),
           limit: joi.number().optional(),
         })
-        .unknown(true);
+        ;
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -77,7 +77,7 @@ module.exports = {
         .object({
           id: joi.number().required(),
         })
-        .unknown(true);
+        ;
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -112,7 +112,7 @@ module.exports = {
         .object({
           id: joi.number().required(),
         })
-        .unknown(true);
+        ;
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {

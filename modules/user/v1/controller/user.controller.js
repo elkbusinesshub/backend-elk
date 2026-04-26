@@ -444,7 +444,7 @@ exports.sendOtp = async (req, res, next) => {
     //   message: responseMessages.otpSend,
     //   verificationId: verificationId,
     // });
-    return res.success(responseMessages.otpSend, { verificationId });
+    return res.success(responseMessages.otpSend, { verificationId, otp });
   } catch (error) {
     // res
     //   .status(responseStatusCodes.internalServerError)
