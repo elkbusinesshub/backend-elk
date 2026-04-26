@@ -9,14 +9,13 @@ const authenticateToken = require("../../../helpers/authentication");
 router.post(
   "/admin-ad-create",
   authenticateToken,
-  
   upload.any(),
   validation.createUserAdAdminValidation,
   adminController.createUserAdAdmin,
 );
 
-router.get("/get_sales_ads", authenticateToken, adminController.getSalesAds);
+router.get("/get_sales_ads", authenticateToken, validation.getSalesAdsValidator,adminController.getSalesAds);
 
-router.get("/get_sales_users",authenticateToken, adminController.getSalesUsers);
+router.get("/get_sales_users",authenticateToken,validation.getSalesUsersValidator, adminController.getSalesUsers);
 
 module.exports = router;

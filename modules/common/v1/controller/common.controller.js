@@ -22,7 +22,6 @@ const {
 const ReferralCode = require("../../../../models/referralCode.model");
 const ReferralCodeLogin = require("../../../../models/referralCodeLogin.model");
 
-//done
 exports.priceCategories = async (req, res, next) => {
   try {
     const priceCategories = await PriceCategory.findAll();
@@ -32,37 +31,32 @@ exports.priceCategories = async (req, res, next) => {
         group[category].push(item);
         return group;
     }, {});
-    //  res.status(responseStatusCodes.success).json(groupedCategories);
     return res.success(responseMessages.priceCategoriesFetched, groupedCategories);
   } catch (error) {
     return next(error);
-    // res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
   }
 };
 
-//done
+
 exports.addPriceCategories = async (req, res, next) => {
   try {
     const {category, title} = req.body;
     const priceCategories = await PriceCategory.findOne({where:{title:title,category:category}});
     if(priceCategories){
-      // return res.status(responseStatusCodes.success).json({ message: responseMessages.priceCategoriesExist });
       return res.success(responseMessages.priceCategoriesExist);
     }
     await PriceCategory.create({
       title:title,
       category:category
     })
-    // return res.status(responseStatusCodes.success).json({ message: responseMessages.priceCategoriesAdded });
     return res.success(responseMessages.priceCategoriesAdded);
   } catch (error) {
     return next(error);
-    // return res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
   }
 };
 
 //done
-exports.deletePriceCategories = async (req,res)=>{
+exports.deletePriceCategories = async (req,res, next)=>{
   try{
     const {category, title}=req.body;
     const priceCategories = await PriceCategory.findOne({where:{title:title,category:category}});

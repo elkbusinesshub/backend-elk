@@ -96,31 +96,20 @@ const addChat = async (req, res, next) => {
 
 const blockAUser = async (req, res, next) => {
   const { authUserId, otherUserId } = req.body;
-  // if ( !authUserId && !otherUserId ) {
-  //     return res.status(responseStatusCodes.badRequest).json({ message: responseMessages.invalidRequest });
-  // }
   try {
     const existingBlock = await BlockedUser.findOne({
       where: { blocker_id: authUserId, blocked_id: otherUserId },
     });
 
     if (existingBlock) {
-      // return res
-      //   .status(responseStatusCodes.success)
-      //   .json({ message: "Success" });
       return res.success(responseMessages.alreadyBlocked)
     }
     await BlockedUser.create({
       blocker_id: authUserId,
       blocked_id: otherUserId,
     });
-
-    // return res
-    //   .status(responseStatusCodes.success)
-    //   .json({ message: "Success!" });
     return res.success(responseMessages.userBlocked);
   } catch (e) {
-    // return res.status(responseStatusCodes.internalServerError).json({ message: responseMessages.internalServerError });
     return next(e);
   }
 };
@@ -129,9 +118,6 @@ const blockAUser = async (req, res, next) => {
 const reportAUser = async (req, res, next) => {
   const { authUserId, otherUserId, reason } = req.body;
   if (!authUserId && !otherUserId && !reason) {
-    // return res
-    //   .status(responseStatusCodes.badRequest)
-    //   .json({ message: responseMessages.invalidRequest });
     return res.error(responseMessages.invalidRequest);
   }
   try {
@@ -140,79 +126,45 @@ const reportAUser = async (req, res, next) => {
       reported_id: otherUserId,
       reason: reason,
     });
-    // return res
-    //   .status(responseStatusCodes.success)
-    // .json({ message: "Success!" });
     return res.success(responseMessages.userReported);
   } catch (e) {
     return next(e);
-    // return res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
   }
 };
 
 
 const unblockAUser = async (req, res, next) => {
   const { authUserId, otherUserId } = req.body;
-  //   if (!authUserId && !otherUserId) {
-  //     return res
-  //       .status(responseStatusCodes.badRequest)
-  //       .json({ message: responseMessages.invalidRequest });
-  //   }
   try {
     const result = await BlockedUser.destroy({
       where: { blocker_id: authUserId, blocked_id: otherUserId },
     });
     if (result === 0) {
-      //   return res
-      //     .status(responseStatusCodes.notFound)
-      //     .json({ message: "No block record found" });
       return res.success(
         responseMessages.noBlockRecord,
         null,
         responseStatusCodes.notFound
       );
     }
-    // return res
-    //   .status(responseStatusCodes.success)
-    //   .json({ message: "User unblocked successfully!" });
     return res.success(responseMessages.userUnblocked);
   } catch (e) {
-    // return res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(e);
   }
 };
 
 const isUserBlocked = async (req, res, next) => {
   const { blockerId, blockedId } = req.query;
-  //   if (!blockerId || !blockedId) {
-  //     return res
-  //       .status(responseStatusCodes.badRequest)
-  //       .json({ message: responseMessages.invalidRequest });
-  //   }
   try {
     const isBlocked = await BlockedUser.findOne({
       where: { blocker_id: blockerId, blocked_id: blockedId },
     });
 
     if (isBlocked) {
-      //   return res
-      //     .status(responseStatusCodes.success)
-      //     .json({ message: "User is blocked", blocked: true });
       return res.success(responseMessages.userBlocked, { blocked: true });
     } else {
-      //   return res
-      //     .status(responseStatusCodes.success)
-      //     .json({ message: "User is not blocked", blocked: false });
       return res.success(responseMessages.userNotBlocked, { blocked: false });
     }
   } catch (e) {
-    // return res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(e);
   }
 };
@@ -327,108 +279,6 @@ const getTotalChatRoomsCount = async (req, res, next) => {
     }
 };
 
-// const getChatRooms = async (req, res, next) => {
-//   const { authUserId } = req.query;
-//   try {
-//     const chatRooms = await ChatRoom.findAll({
-//       where: {
-//         [Op.or]: [{ user1: authUserId }, { user2: authUserId }],
-//       },
-//       attributes: {
-//         include: [
-//           [
-//             sequelize.fn(
-//               "COUNT",
-//               sequelize.literal(
-//                 `CASE WHEN chat_messages.reciever_id = ${authUserId} and chat_messages.status = 'send' THEN 1 END`
-//               )
-//             ),
-//             "new_message_count",
-//           ],
-//         ],
-//       },
-//       include: [
-//         { model: User, as: "User1" },
-//         { model: User, as: "User2" },
-//         {
-//           model: ChatMessage,
-//           as: "chat_messages",
-//           attributes: [],
-//           required: false,
-//         },
-//       ],
-//       group: ["ChatRoom.id"],
-//       order: [["last_message_time", "DESC"]],
-//     });
-//     let data = [];
-//     if (chatRooms.length > 0) {
-//       data = await Promise.all(
-//         chatRooms.map(async (chatRoom) => {
-//           const localTime = new Date(chatRoom.last_message_time).toLocaleString(
-//             "en-US",
-//             {
-//               day: "numeric",
-//               month: "long",
-//               year: "numeric",
-//               hour: "numeric",
-//               minute: "numeric",
-//               hour12: true,
-//             }
-//           );
-//           chatRoom.last_message_time === localTime;
-//           const authUser =
-//             chatRoom.User1.id === authUserId
-//               ? chatRoom.User1.toJSON()
-//               : chatRoom.User2.toJSON();
-//           const otherUser =
-//             chatRoom.User1.id === authUserId
-//               ? chatRoom.User2.toJSON()
-//               : chatRoom.User1.toJSON();
-//           authUser.profile = authUser.profile
-//             ? getImageUrlPublic(authUser.profile)
-//             : null;
-//           otherUser.profile = otherUser.profile
-//             ? getImageUrlPublic(otherUser.profile)
-//             : null;
-//           const isBlockedByOther = await BlockedUser.findOne({
-//             where: {
-//               blocker_id: otherUser.id,
-//               blocked_id: authUser.id,
-//             },
-//           });
-
-//           const isYouBlockedOther = await BlockedUser.findOne({
-//             where: {
-//               blocker_id: authUser.id,
-//               blocked_id: otherUser.id,
-//             },
-//           });
-//           return {
-//             ...chatRoom.toJSON(),
-//             last_message_time: localTime,
-//             User1: null,
-//             User2: null,
-//             authUser,
-//             otherUser,
-//             isBlockedByOther: !!isBlockedByOther, // return boolean
-//             isYouBlockedOther: !!isYouBlockedOther,
-//           };
-//         })
-//       );
-//     }
-//     // res
-//     //   .status(responseStatusCodes.success)
-//     //   .json({ message: "Chat messages retrieved successfully", data });
-//     return res.success(responseMessages.chatRoomFound, data);
-//   } catch (e) {
-//     // res
-//     //   .status(responseStatusCodes.internalServerError)
-//     //   .json({ message: "Something went wrong: " + e.message });
-//     return next(e);
-//   }
-// };
-
-//done
 const getChatRooms = async (req, res, next) => {
     try {
         const { authUserId } = req.query;
@@ -510,7 +360,7 @@ const getChatRooms = async (req, res, next) => {
     }
 };
 
-//done
+
 const fetchChatRooms = async (authUserId) => {
   const id = String(authUserId); // ✅ normalize to string for comparison
   console.log("🔍 fetchChatRooms authUserId:", id, typeof id);
@@ -588,20 +438,12 @@ const fetchChatRooms = async (authUserId) => {
   }
 };
 
-//done
+
 const deleteOneChatMessageForUser = async (req, res, next) => {
   const { authUserId, messageId } = req.body;
-  //   if (!authUserId || !messageId) {
-  //     return res
-  //       .status(responseStatusCodes.badRequest)
-  //       .json({ message: responseMessages.invalidRequest });
-  //   }
   try {
     const chatMessage = await ChatMessage.findByPk(messageId);
     if (!chatMessage) {
-      //   return res
-      //     .status(responseStatusCodes.notFound)
-      //     .json({ message: "Chat message not found" });
       return res.error(
         responseMessages.chatNotFound,
         null,
@@ -612,19 +454,13 @@ const deleteOneChatMessageForUser = async (req, res, next) => {
       chatMessage.deleted_for.push(authUserId);
       await chatMessage.save();
     }
-    // res
-    //   .status(responseStatusCodes.success)
-    //   .json({ message: "Chat message deleted for user successfully" });
     return res.success(responseMessages.usersChatDeleted);
   } catch (error) {
-    // res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: "Something went wrong: " });
     return next(error);
   }
 };
 
-//done
+
 const deleteAllMessagesForUser = async (req, res, next) => {
     try {
         const { authUserId, otherUserId } = req.body;
@@ -668,14 +504,9 @@ const deleteAllMessagesForUser = async (req, res, next) => {
     }
 };
 
-//done
+
 const deleteRoom = async (req, res, next) => {
   const { id } = req.body;
-  //   if (!id) {
-  //     return res
-  //       .status(responseStatusCodes.badRequest)
-  //       .json({ message: responseMessages.invalidRequest });
-  //   }
   try {
     const chatRoom = await ChatRoom.findOne({ where: { room_id: id } });
     if (!chatRoom) {
@@ -684,45 +515,24 @@ const deleteRoom = async (req, res, next) => {
         .json({ message: "Already deleted!" });
     }
     await ChatMessage.destroy({ where: { room_id: id } });
-    // await Participant.destroy({ where: { room_id: id } });
     await ChatRoom.destroy({ where: { room_id: id } });
-    // return res
-    //   .status(responseStatusCodes.success)
-    //   .json({ message: "Successfully Deleted!" });
     return res.success(responseMessages.chatRoomDeleted);
   } catch (error) {
-    // return res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };
 
-//done
+
 const deleteMessage = async (req, res, next) => {
   const { id } = req.body;
-//   if (!id) {
-//     return res
-//       .status(responseStatusCodes.badRequest)
-//       .json({ message: responseMessages.invalidRequest });
-//   }
   try {
     const message = await ChatMessage.findOne({ where: { id: id } });
     if (!message) {
-    //   return res
-    //     .status(responseStatusCodes.badRequest)
-    //     .json({ message: "Already deleted!" });
     return res.error(responseMessages.chatAlreadyDeleted);
     }
     await ChatMessage.destroy({ where: { id: id } });
-    // return res
-    //   .status(responseStatusCodes.success)
-    //   .json({ message: "Successfully Deleted!" });
     return res.success(responseMessages.chatAlreadyDeleted);
   } catch (error) {
-    // return res
-    //   .status(responseStatusCodes.internalServerError)
-    //   .json({ message: responseMessages.internalServerError });
     return next(error);
   }
 };

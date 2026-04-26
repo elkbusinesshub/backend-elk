@@ -5,15 +5,21 @@ const AdPriceDetails = require("../../../../models/adPriceDetails.model");
 const User = require("../../../../models/user.model");
 const ReferralCodeLogin = require("../../../../models/referralCodeLogin.model");
 const ReferralCode = require("../../../../models/referralCode.model");
-const { responseStatusCodes, responseMessages } = require("../../../../helpers/appConstants");
-const { getImageUrlPublic, generateUserId, generateAdId } = require("../../../../helpers/utils");
+const {
+  responseStatusCodes,
+  responseMessages,
+} = require("../../../../helpers/appConstants");
+const {
+  getImageUrlPublic,
+  generateUserId,
+  generateAdId,
+} = require("../../../../helpers/utils");
 require("dotenv").config();
 const admin = require("../../../../helpers/firebase");
 
 const getSalesAds = async (req, res, next) => {
   try {
     const { limit = 10, offset = 0 } = req.query;
-    console.log(req.user)
 
     const referrals = await ReferralCodeLogin.findAll({
       where: { refered_id: req?.user?.id },
@@ -23,7 +29,10 @@ const getSalesAds = async (req, res, next) => {
     const referredUserIds = referrals.map((r) => r.login_id);
 
     if (referredUserIds.length === 0) {
-      return res.success(responseMessages.adminAdsFetched, { total: 0, data: [] });
+      return res.success(responseMessages.adminAdsFetched, {
+        total: 0,
+        data: [],
+      });
     }
 
     const { count, rows: ads } = await Ad.findAndCountAll({
@@ -42,7 +51,6 @@ const getSalesAds = async (req, res, next) => {
       offset: parseInt(offset),
       distinct: true,
     });
-    console.log("af,,",ads)
 
     const adsWithImageUrls = ads.map((ad) => {
       const adObj = ad.toJSON();
@@ -53,7 +61,6 @@ const getSalesAds = async (req, res, next) => {
           image: img.image ? getImageUrlPublic(img.image) : null,
         }));
       }
-
       return adObj;
     });
 
@@ -104,26 +111,25 @@ const getSalesUsers = async (req, res, next) => {
 };
 
 const createUserAdAdmin = async (req, res, next) => {
-  try
-   {
+  try {
     const { name, phone } = req.body;
     let user = await User.findOne({ where: { mobile_number: `+91 ${phone}` } });
     if (user) {
       return res.success(responseMessages.adminusercreatedalready);
     }
-    
+
     const newUser = await User.create({
       name: name || "User",
       user_id: generateUserId(),
       mobile_number: `+91 ${phone}`,
-      is_logged: false
+      is_logged: false,
     });
     const referralOwner = await ReferralCode.findOne({
       where: { user_id: req.user.id },
     });
     const referrerId = referralOwner.user_id;
     if (referrerId === newUser.user_id) {
-      return res.error(responseStatusCodes.cannotReferYourself)
+      return res.error(responseStatusCodes.cannotReferYourself);
     }
     if (referralOwner) {
       const loginUserId = newUser.user_id;
@@ -139,9 +145,7 @@ const createUserAdAdmin = async (req, res, next) => {
       }
     }
     const db = admin.firestore();
-    const privacyRef = db
-      .collection("privacy")
-      .doc(newUser.user_id.toString());
+    const privacyRef = db.collection("privacy").doc(newUser.user_id.toString());
 
     await privacyRef.set({
       name: newUser.name,
@@ -208,9 +212,7 @@ const createUserAdAdmin = async (req, res, next) => {
 
     const tokens = [
       ...new Set(
-        usersToNotify
-          .map(u => u.notification_token)
-          .filter(Boolean)
+        usersToNotify.map((u) => u.notification_token).filter(Boolean),
       ),
     ];
 
@@ -232,12 +234,11 @@ const createUserAdAdmin = async (req, res, next) => {
             image: img,
           }));
           await AdImage.bulkCreate(imageRecords);
-        }
-        else{
-            await AdImage.create({
-                ad_id,
-                image: "1761544844899520_auto.png"
-            })
+        } else {
+          await AdImage.create({
+            ad_id,
+            image: "1761544844899520_auto.png",
+          });
         }
 
         if (adData.prices && adData.prices.length > 0) {
@@ -248,41 +249,36 @@ const createUserAdAdmin = async (req, res, next) => {
           }));
           await AdPriceDetails.bulkCreate(priceRecords);
         }
-        
       }),
     );
-    for (let index = 0; index < ads.length; index++) {
-      const adData = ads[index];
-      const ad_id = adIdMap[index];
-
-      if (tokens.length === 0) {
-        break;
-      }
-
-      const message = {
-        notification: {
-          title: "A Fresh Listing Awaits! 🔥",
-          body: `New ad posted: "${adData.title}". Tap to view now!`,
-        },
-        data: {
-          type: "adpost",
-          ad_id: ad_id.toString(),
-        },
-        tokens,
-      };
-
-      try {
-        await messaging.sendEachForMulticast(message);
-      } catch (err) {
-        console.error("FCM send error for ad", ad_id, err.message);
-      }
+    
+    if (tokens.length > 0) {
+      Promise.allSettled(
+        ads.map(async (adData, index) => {
+          const ad_id = adIdMap[index];
+          try {
+            await messaging.sendEachForMulticast({
+              notification: {
+                title: "A Fresh Listing Awaits! 🔥",
+                body: `New ad posted: "${adData.title}". Tap to view now!`,
+              },
+              data: {
+                type: "adpost",
+                ad_id: ad_id.toString(),
+              },
+              tokens,
+            });
+          } catch (err) {
+            console.error("FCM send error for ad", ad_id, err.message);
+          }
+        }),
+      ).catch((err) => console.error("FCM batch failed", err));
     }
-     return res.success(
-      responseMessages.adminusercreated
-    );
+
+    return res.success(responseMessages.adminusercreated);
   } catch (error) {
     console.error(error);
-    return next(error)
+    return next(error);
   }
 };
 

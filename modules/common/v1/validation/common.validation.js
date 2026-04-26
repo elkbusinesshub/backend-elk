@@ -6,7 +6,7 @@ module.exports ={
             const schema = joi.object({
                 title: joi.string().required(),
                 category: joi.string().required()
-            }).unknown(true);
+            });
 
             await schema.validateAsync(req.body);
             return next();
@@ -19,7 +19,7 @@ validateDeletePriceCategories :  async(req, res, next) => {
             const schema = joi.object({
                 title: joi.string().required(),
                 category: joi.string().required()
-            }).unknown(true);
+            });
 
             await schema.validateAsync(req.body);
             return next();

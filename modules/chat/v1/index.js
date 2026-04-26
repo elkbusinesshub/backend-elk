@@ -13,36 +13,43 @@ router.post(
 );
 router.post(
   '/report_user',
+  authenticateToken,
   validation.validateBlockUnblock,
   chatController.reportAUser
 );
 router.get(
   "/get_chat",
+  authenticateToken,
   validation.validateGetChat,
   chatController.getChatMessages
 );
 router.get(
   "/chat_rooms",
+  authenticateToken,
   validation.validateChatRooms,
   chatController.getChatRooms
 );
 router.get(
   "/unread_chat_room_count",
+  authenticateToken,
   validation.validateUnreadCount,
   chatController.getTotalChatRoomsCount
 );
 router.post(
   "/block_user",
+  authenticateToken,
   validation.validateBlockUnblock,
   chatController.blockAUser
 );
 router.post(
   "/unblock_user",
+  authenticateToken,
   validation.validateBlockUnblock,
   chatController.unblockAUser
 );
 router.get(
   "/is_blocked",
+  authenticateToken,
   validation.validateIsBlocked,
   chatController.isUserBlocked
 );
