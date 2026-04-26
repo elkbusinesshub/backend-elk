@@ -124,7 +124,11 @@ module.exports.responseMessages = {
   messageUpdated: "Message Updated successfully",
 
   //superadmin
-  allUsersFetched: "All user fetched successfully"
+  allUsersFetched: "All user fetched successfully",
+  alreadyNotificationSent: "Already notification sent for this number",
+  phoneNotFound: "Phone number not found, notification not sent yet",
+  phoneNoAdded: " Phone number added"
+
   
 
 

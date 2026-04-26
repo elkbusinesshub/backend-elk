@@ -3,12 +3,14 @@ const joi = require("joi");
 module.exports = {
   getAdminAdsValidation: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        date: joi.date().optional().allow(""),
-        location: joi.string().optional().allow(""),
-        limit: joi.number().required(),
-        offset: joi.number().required(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          date: joi.date().optional().allow(""),
+          location: joi.string().optional().allow(""),
+          limit: joi.number().required(),
+          offset: joi.number().required(),
+        })
+        .unknown(true);
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -17,9 +19,11 @@ module.exports = {
   },
   deleteAdminAdValidation: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        id: joi.string().required(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          id: joi.string().required(),
+        })
+        .unknown(true);
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -28,9 +32,11 @@ module.exports = {
   },
   blockUserByIdValidation: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        id: joi.number().required(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          id: joi.number().required(),
+        })
+        .unknown(true);
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -39,10 +45,12 @@ module.exports = {
   },
   makeUserAdminValidation: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        user_id: joi.number().required(),
-        role: joi.string().required(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          user_id: joi.number().required(),
+          role: joi.string().required(),
+        })
+        .unknown(true);
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -51,10 +59,12 @@ module.exports = {
   },
   getSalesUsersValidation: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        offset: joi.number().optional(),
-        limit: joi.number().optional(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          offset: joi.number().optional(),
+          limit: joi.number().optional(),
+        })
+        .unknown(true);
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -63,9 +73,11 @@ module.exports = {
   },
   getSalesUserByIdValidation: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        id: joi.number().required(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          id: joi.number().required(),
+        })
+        .unknown(true);
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -96,10 +108,49 @@ module.exports = {
   },
   getAdByIdValidation: async (req, res, next) => {
     try {
-      const schema = joi.object({
-        id: joi.number().required(),
-      }).unknown(true);
+      const schema = joi
+        .object({
+          id: joi.number().required(),
+        })
+        .unknown(true);
       await schema.validateAsync(req.query);
+      return next();
+    } catch (error) {
+      return res.error(error?.message);
+    }
+  },
+  getCheckPhoneValidation: async (req, res, next) => {
+    try {
+      const schema = joi.object({
+        phone_number: joi
+          .string()
+          .pattern(/^[0-9]{10}$/)
+          .required()
+          .messages({
+            "string.pattern.base": "Phone number must be exactly 10 digits",
+            "any.required": "phone_number is required",
+          }),
+      });
+      await schema.validateAsync(req.query);
+      return next();
+    } catch (error) {
+      return res.error(error?.message);
+    }
+  },
+
+  addPhoneValidation: async (req, res, next) => {
+    try {
+      const schema = joi.object({
+        phone_number: joi
+          .string()
+          .pattern(/^[0-9]{10}$/)
+          .required()
+          .messages({
+            "string.pattern.base": "Phone number must be exactly 10 digits",
+            "any.required": "phone_number is required",
+          }),
+      });
+      await schema.validateAsync(req.body);
       return next();
     } catch (error) {
       return res.error(error?.message);

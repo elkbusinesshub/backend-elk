@@ -1,62 +1,70 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 const superAdminController = require("./controller/superadmin.controller");
-const validation = require('./validation/superadmin.validation');
+const validation = require("./validation/superadmin.validation");
 const multer = require("multer");
 const upload = multer();
-
+const authentication = require("./../../../helpers/authentication");
 
 router.post(
-    '/make_admin',
-    validation.makeUserAdminValidation,
-    superAdminController.makeUserAdmin
+  "/make_admin",
+  validation.makeUserAdminValidation,
+  superAdminController.makeUserAdmin,
 );
 router.get(
   "/get-admin-ads",
   validation.getAdminAdsValidation,
-  superAdminController.getAdminAds
+  superAdminController.getAdminAds,
 );
 router.delete(
   "/delete-ad",
- validation.deleteAdminAdValidation,
-  superAdminController.deleteAdminAd
+  validation.deleteAdminAdValidation,
+  superAdminController.deleteAdminAd,
 );
-router.get(
-  "/get-ad-locations",
-  superAdminController.getAllAdLocations
-);
-router.get(
-  "/get-users",
-  superAdminController.getAllUsers
-); 
+router.get("/get-ad-locations", superAdminController.getAllAdLocations);
+router.get("/get-users", superAdminController.getAllUsers);
 router.put(
   "/block_user",
   validation.blockUserByIdValidation,
-  superAdminController.blockUserById
-);     
+  superAdminController.blockUserById,
+);
 router.get(
   "/get-sales-users",
   validation.getSalesUsersValidation,
-  superAdminController.getSalesUsers
+  superAdminController.getSalesUsers,
 );
 
 router.get(
   "/get-sales-user-by-id",
   validation.getSalesUserByIdValidation,
-  superAdminController.getSalesUserById
+  superAdminController.getSalesUserById,
 );
 
 router.get(
   "/get-ad-by-id",
   validation.getAdByIdValidation,
-  superAdminController.getAdById
+  superAdminController.getAdById,
 );
 
 router.put(
   "/update-ad",
   upload.array("ad_images"),
   validation.updateAdValidation,
-  superAdminController.updateAd
+  superAdminController.updateAd,
+);
+
+router.get(
+  "/check-phone",
+  authentication,
+  validation.getCheckPhoneValidation,
+  superAdminController.checkPhone,
+);
+
+router.post(
+  "/add-phone",
+  authentication,
+  validation.addPhoneValidation,
+  superAdminController.addPhone,
 );
 
 module.exports = router;

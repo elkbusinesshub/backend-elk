@@ -6,7 +6,8 @@ const AdPriceDetails = require("../../../../models/adPriceDetails.model");
 const User = require("../../../../models/user.model");
 const AdViews = require("../../../../models/adView.model");
 const AdWishLists = require("../../../../models/adWishList.model");
-const ReferralCodeLogin = require('../../../../models/referralCodeLogin.model');
+const ReferralCodeLogin = require("../../../../models/referralCodeLogin.model");
+const NotifiedPhone = require("../../../../models/notifiedPhone.model");
 const {
   responseStatusCodes,
   responseMessages,
@@ -522,6 +523,45 @@ const getAdById = async (req, res, next) => {
   }
 };
 
+const checkPhone = async (req, res, next) => {
+  try {
+    const { phone_number } = req.query;
+
+    const record = await NotifiedPhone.findOne({ where: { phone_number } });
+
+    if (!record) {
+      return res.success(responseMessages.phoneNotFound, {
+        exists: false,
+        created_at: null,
+      });
+    }
+
+    return res.success(responseMessages.alreadyNotificationSent, {
+      exists: true,
+      created_at: record.createdAt,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const addPhone = async (req, res, next) => {
+  try {
+    const { phone_number } = req.body;
+
+    const existing = await NotifiedPhone.findOne({ where: { phone_number } });
+    if (existing) {
+      return res.error(responseMessages.alreadyNotificationSent);
+    }
+
+    const record = await NotifiedPhone.create({ phone_number });
+
+    return res.success(responseMessages.phoneNoAdded, record);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getAdminAds,
   deleteAdminAd,
@@ -533,4 +573,6 @@ module.exports = {
   getSalesUserById,
   getAdById,
   updateAd,
+  checkPhone,
+  addPhone,
 };
