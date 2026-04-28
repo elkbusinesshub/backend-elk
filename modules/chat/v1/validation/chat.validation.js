@@ -31,7 +31,7 @@ const validateAddChat = async (req, res, next) => {
         "any.required": "status is required",
         "string.empty": "status is required",
       }),
-    }).unknown(true);
+    });
 
     await schema.validateAsync(req.body);
     return next();
@@ -82,7 +82,7 @@ const validateUnreadCount = async (req, res, next) => {
         "any.required": "authUserId is required",
         "string.empty": "authUserId is required",
       }),
-    }).unknown(true);
+    });
 
     await schema.validateAsync(req.query);
     return next();

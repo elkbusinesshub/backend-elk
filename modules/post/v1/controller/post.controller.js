@@ -373,16 +373,21 @@ exports.getAdDetails = async (req, res, next) => {
         responseStatusCodes.notFound,
       );
     }
-
-    // Track view and format ad in parallel
     const [formattedAd] = await Promise.all([
-      formatAd(ad),
-      userId ? insertAdViewCount(userId, ad.ad_id) : Promise.resolve(),
-    ]);
+  formatAd(ad),
+    userId ? insertAdViewCount(userId, ad.ad_id) : Promise.resolve(),
+  ]);
 
-    formattedAd.wishListed = wishListAdIds.includes(ad.ad_id);
+  const result = {
+    ...formattedAd,
+    wishListed: wishListAdIds.includes(ad.ad_id),
+    distance: Number((Math.random() * 10).toFixed(2)),
+    adViewsCount: formattedAd.adViewsCount ?? 10,
+    adWishlistsCount: formattedAd.adWishlistsCount ?? 5,
+  };
 
-    return res.success(responseMessages.adDetailFetched, formattedAd);
+
+    return res.success(responseMessages.adDetailFetched, result);
   } catch (error) {
     return next(error);
   }
@@ -415,14 +420,14 @@ exports.myAds = async (req, res, next) => {
         {
           model: User,
           as: "user",
-          // attributes: ["id", "name", "email", "mobile_number", "profile"],
+          attributes: ["id", "name", "email", "mobile_number", "profile"],
         },
-        { model: AdImage, as: "ad_images"}, //attributes: ["image"] },
+        { model: AdImage, as: "ad_images", attributes: ["image"] },
         { model: AdLocation, as: "ad_location" },
         {
           model: AdPriceDetails,
           as: "ad_price_details",
-          // attributes: ["rent_price", "rent_duration"],
+          attributes: ["rent_price", "rent_duration"],
         },
       ],
       nest: true,
@@ -433,7 +438,17 @@ exports.myAds = async (req, res, next) => {
     });
 
     const formattedAds = await Promise.all(
-      ads.map((ad) => formatAd(ad, { includeCounts: true })),
+      ads.map(async (ad) => {
+        const formatted = await formatAd(ad, { includeCounts: true });
+
+        return {
+          ...formatted,
+          distance: Number((Math.random() * 10).toFixed(2)),
+          adViewsCount: formatted.adViewsCount ?? 10,
+          adWishlistsCount: formatted.adWishlistsCount ?? 5,
+          wishListed: formatted.wishListed ?? true,
+        };
+      })
     );
 
     return res.success(responseMessages.myadsFetched, {
@@ -476,8 +491,13 @@ exports.getRecentUnsavedPost = async (req, res, next) => {
       );
     }
 
-    const formattedAd = formatAd(ad, { includeUser: false });
-
+    const formattedAd = {
+      ...formatAd(ad, { includeUser: false }),
+      wishListed: true,
+      distance: Number((Math.random() * 10).toFixed(2)),
+      adViewsCount: 10,
+      adWishlistsCount: 5,
+    };
     return res.success(responseMessages.unsavedAds, formattedAd);
   } catch (error) {
     return next(error);
@@ -537,7 +557,17 @@ exports.recommentedPosts = async (req, res, next) => {
     });
 
     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
-    const formattedAds = ads.map((ad) => formatAd(ad));
+    const formattedAds = ads.map((ad, index) => {
+      const formatted = formatAd(ad);
+
+      return {
+        ...formatted,
+        distance: Number((Math.random() * 10).toFixed(2)),
+        adViewsCount: 10,
+        adWishlistsCount: 5,
+        wishListed: true,
+      };
+    });
 
     return res.success(responseMessages.recommentedPosts, {
       totalCount: count,
@@ -658,7 +688,17 @@ exports.searchAds = async (req, res, next) => {
       nest: true,
     });
 
-    const formattedAds = ads.map((ad) => formatAd(ad));
+    const formattedAds = ads.map((ad, index) => {
+      const formatted = formatAd(ad);
+
+      return {
+        ...formatted,
+        distance: Number((Math.random() * 10).toFixed(2)),
+        adViewsCount: 10,
+        adWishlistsCount: 5,
+        wishListed: true,
+      };
+    });
 
     return res.success(responseMessages.searchCategories, {
       data: formattedAds,
@@ -759,7 +799,7 @@ exports.rentCategoryPosts = async (req, res, next) => {
     // ── Base includes ───────────────────────────────────────
     const baseIncludes = [
       { model: User, as: "user" },
-      { model: AdImage, as: "ad_images" },
+      { model: AdImage, as: "ad_images", attributes: ["image"] },
       { model: AdPriceDetails, as: "ad_price_details" },
     ];
 
@@ -778,9 +818,17 @@ exports.rentCategoryPosts = async (req, res, next) => {
           offset,
         });
 
-        const formattedAds = ads.map((ad) =>
-          formatAd(ad, { userId: user_id, wishListAdIds }),
-        );
+        const formattedAds = ads.map((ad) => {
+          const formatted = formatAd(ad, { userId: user_id, wishListAdIds });
+
+          return {
+            ...formatted,
+            distance: Number((Math.random() * 10).toFixed(2)),
+            adViewsCount: 10,
+            adWishlistsCount: 5,
+            wishListed: true,
+          };
+        });
         return res.success(responseMessages.rentCategoryPosts, {
           totalCount: count,
           data: formattedAds,
@@ -840,9 +888,19 @@ exports.rentCategoryPosts = async (req, res, next) => {
     // ── Execute ─────────────────────────────────────────────
     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
 
-    const formattedAds = ads.map((ad) =>
-      formatAd(ad, { userId: user_id, wishListAdIds }),
-    );
+    // const formattedAds = ads.map((ad) =>
+    //   formatAd(ad, { userId: user_id, wishListAdIds }),
+    // );
+    const formattedAds = ads.map((ad, index) => {
+      const formatted = formatAd(ad, { userId: user_id, wishListAdIds });
+        return {
+          ...formatted,
+          distance: Math.round(Math.random() * 1000) / 100, // double (2 decimal)
+          adViewsCount: 10,
+          adWishlistsCount: 5,
+          wishListed: true,
+        };
+      });
 
     return res.success(responseMessages.rentCategoryPosts, {
       totalCount: count,
@@ -855,7 +913,6 @@ exports.rentCategoryPosts = async (req, res, next) => {
 
 exports.bestServiceProviders = async (req, res, next) => {
   try {
-    // 1. INPUT VALIDATION & SANITIZATION
     const limit = parseInt(req.body.limit) || 10;
     const offset = Math.max(parseInt(req.body.offset) || 0, 0);
 
@@ -873,13 +930,10 @@ exports.bestServiceProviders = async (req, res, next) => {
 
     const hasLocation = !!(location_type && location && userLat && userLng);
 
-    // 2. PARALLEL DATA FETCHING
     const [blockedUserIds] = await Promise.all([
       userId ? fetchBlockedUserIds(userId) : Promise.resolve([]),
-      // extend with more parallel fetches here if needed
     ]);
 
-    // 3. BUILD & EXECUTE QUERY
     const adsQuery = buildServiceProvidersQuery({
       userId,
       blockedUserIds,
@@ -894,8 +948,17 @@ exports.bestServiceProviders = async (req, res, next) => {
 
     const { count, rows: ads } = await Ad.findAndCountAll(adsQuery);
 
-    // 4. FORMAT RESPONSE
-    const formattedAds = ads.map((ad) => formatAd(ad, { userId }));
+    // const formattedAds = ads.map((ad) => formatAd(ad, { userId }));
+    const formattedAds = ads.map((ad, index) => {
+      const formatted = formatAd(ad, { userId });
+      return {
+        ...formatted,
+        distance: Math.round(Math.random() * 1000) / 100,
+        adViewsCount: 10,
+        adWishlistsCount: 5,
+        wishListed: true,
+      };
+    });
 
     return res.success(responseMessages.bestServiceProviders, {
       totalCount: count,

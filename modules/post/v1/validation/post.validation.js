@@ -14,7 +14,7 @@ module.exports = {
           ad_status: joi.string().allow(null).optional(),
           ad_stage: joi.number().allow(null).optional(),
         })
-        .unknown(true);
+        ;
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -30,7 +30,7 @@ module.exports = {
           ad_status: joi.string().optional(),
           ad_stage: joi.number().optional(),
         })
-        .unknown(true);
+        ;
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -53,7 +53,7 @@ module.exports = {
           locality: joi.string().allow("").optional(),
           place: joi.string().allow("").optional(),
         })
-        .unknown(true);
+        ;
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -67,7 +67,7 @@ module.exports = {
           ad_id: joi.number().optional(),
           user_id: joi.number().optional(),
         })
-        .unknown(true);
+        ;
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -80,7 +80,7 @@ module.exports = {
         .object({
           id: joi.string().required(),
         })
-        .unknown(true);
+        ;
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -93,7 +93,7 @@ module.exports = {
         .object({
           adId: joi.string().required(),
         })
-        .unknown(true);
+        ;
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -106,7 +106,7 @@ module.exports = {
         .object({
           ad_id: joi.string().required(),
         })
-        .unknown(true);
+        ;
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -123,7 +123,7 @@ module.exports = {
           id: joi.number().integer().optional(),
           offset: joi.number().integer().min(0).optional(),
         })
-        .unknown(true);
+        ;
 
       await schema.validateAsync(req.body);
       return next();
@@ -167,7 +167,7 @@ module.exports = {
           }),
           keyword: joi.string().required(),
         })
-        .unknown(true);
+        ;
 
       await schema.validateAsync(req.body);
       return next();
@@ -249,7 +249,7 @@ module.exports = {
           }
           return value;
         })
-        .unknown(true);
+        ;
 
       await schema.validateAsync(req.body);
       return next();
@@ -263,7 +263,7 @@ module.exports = {
         .object({
           ad_id: joi.number().required(),
         })
-        .unknown(true);
+        ;
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
