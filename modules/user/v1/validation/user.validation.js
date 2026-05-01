@@ -36,6 +36,7 @@ module.exports = {
         email: joi.string().required(),
         uuid: joi.string().required(),
         name: joi.string().min(2).max(100).required().label("Name"),
+        referralCode: joi.string().optional().allow(null, "").label("Referral Code"),
       });
 
       await schema.validateAsync(req.body);
