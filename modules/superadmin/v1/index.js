@@ -22,7 +22,7 @@ router.delete(
   superAdminController.deleteAdminAd,
 );
 router.get("/get-ad-locations", superAdminController.getAllAdLocations);
-router.get("/get-users", superAdminController.getAllUsers);
+router.get("/get-users", validation.getAllUsersValidation, superAdminController.getAllUsers);
 router.put(
   "/block_user",
   validation.blockUserByIdValidation,

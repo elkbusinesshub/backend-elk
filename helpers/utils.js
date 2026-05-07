@@ -489,4 +489,5 @@ module.exports = {
   generateRoomId,
   generateAdId,
   generatePlaceholderImage,
+  s3
 };

@@ -1,4 +1,5 @@
 const Ad = require("../../../../models/ad.model");
+const { Op } = require("sequelize");
 const AdLocation = require("../../../../models/adLocation.model");
 const AdImage = require("../../../../models/adImage.model");
 const AdPriceDetails = require("../../../../models/adPriceDetails.model");
@@ -16,10 +17,14 @@ const {
 } = require("../../../../helpers/utils");
 require("dotenv").config();
 const admin = require("../../../../helpers/firebase");
+const { PutObjectCommand } = require("@aws-sdk/client-s3");
+const { s3 } = require("../../../../helpers/utils");
 
 const getSalesAds = async (req, res, next) => {
   try {
-    const { limit = 10, offset = 0 } = req.query;
+    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const offset = Math.max(0, parseInt(req.query.offset) || 0);
+    const { search } = req.query;
 
     const referrals = await ReferralCodeLogin.findAll({
       where: { refered_id: req?.user?.id },
@@ -35,8 +40,14 @@ const getSalesAds = async (req, res, next) => {
       });
     }
 
+    const adWhereClause = { user_id: referredUserIds };
+
+    if (search) {
+      adWhereClause.title = { [Op.like]: `%${search}%` };
+    }
+
     const { count, rows: ads } = await Ad.findAndCountAll({
-      where: { user_id: referredUserIds },
+      where: adWhereClause,
       include: [
         {
           model: User,
@@ -47,14 +58,14 @@ const getSalesAds = async (req, res, next) => {
         { model: AdPriceDetails, as: "ad_price_details" },
         { model: AdLocation, as: "ad_location" },
       ],
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+      limit,
+      offset,
       distinct: true,
+      order: [["createdAt", "DESC"]],
     });
 
     const adsWithImageUrls = ads.map((ad) => {
       const adObj = ad.toJSON();
-
       if (adObj.ad_images?.length > 0) {
         adObj.ad_images = adObj.ad_images.map((img) => ({
           ...img,
@@ -75,24 +86,36 @@ const getSalesAds = async (req, res, next) => {
 
 const getSalesUsers = async (req, res, next) => {
   try {
-    const { limit = 10, offset = 0 } = req.query;
+    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const offset = Math.max(0, parseInt(req.query.offset) || 0);
+    const { search } = req.query;
 
+    const hasSearch = !!search;
+    const userWhereClause = {};
+
+    if (hasSearch) {
+      userWhereClause[Op.or] = [{ name: { [Op.like]: `%${search}%` } }];
+    }
+    const whereClause = { refered_id: req.user.id };
     const { count, rows: referrals } = await ReferralCodeLogin.findAndCountAll({
-      where: { refered_id: req.user.id },
+      where: whereClause,
       include: [
         {
           model: User,
           as: "login_user",
           attributes: ["name", "id", "profile", "createdAt"],
+          where: hasSearch ? userWhereClause : undefined,
+          required: hasSearch,
         },
       ],
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+      limit,
+      offset,
       distinct: true,
+      order: [["createdAt", "DESC"]],
     });
 
-    const usersWithProfileUrls = referrals.map((user) => {
-      const userObj = user.toJSON();
+    const usersWithProfileUrls = referrals.map((referral) => {
+      const userObj = referral.toJSON();
       if (userObj.login_user?.profile) {
         userObj.login_user.profile = getImageUrlPublic(
           userObj.login_user.profile,

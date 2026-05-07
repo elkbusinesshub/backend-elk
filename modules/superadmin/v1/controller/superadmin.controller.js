@@ -103,11 +103,32 @@ const getAdminAds = async (req, res, next) => {
 
 const getAllUsers = async (req, res, next) => {
   try {
-    const { limit = 10, offset = 0 } = req.query;
+    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const offset = Math.max(0, parseInt(req.query.offset) || 0);
+    const { search, date } = req.query;
+
+    const whereClause = {};
+
+    if (search) {
+      whereClause[Op.or] = [
+        { name: { [Op.like]: `%${search}%` } },
+        { mobile_number: { [Op.like]: `%${search}%` } },
+        { email: { [Op.like]: `%${search}%` } },
+      ];
+    }
+
+    if (date) {
+      whereClause.createdAt = {
+        [Op.gte]: dayjs(date).startOf("day").toDate(),
+        [Op.lte]: dayjs(date).endOf("day").toDate(),
+      };
+    }
 
     const { count, rows: users } = await User.findAndCountAll({
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+      where: whereClause,
+      limit,
+      offset,
+      order: [["createdAt", "DESC"]],
     });
 
     const usersWithProfileUrls = users.map((user) => {
@@ -122,6 +143,8 @@ const getAllUsers = async (req, res, next) => {
       responseMessages.allUsersFetched,
       {
         total: count,
+        limit,
+        offset,
         data: usersWithProfileUrls,
       },
       responseStatusCodes.success,
@@ -242,10 +265,32 @@ const makeUserAdmin = async (req, res, next) => {
 
 const getSalesUsers = async (req, res, next) => {
   try {
-    const { limit = 10, offset = 0 } = req.query;
+    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const offset = Math.max(0, parseInt(req.query.offset) || 0);
+    const { search, date } = req.query;
+
+    const whereClause = {};
+
+    if (search) {
+      whereClause[Op.or] = [
+        { name: { [Op.like]: `%${search}%` } },
+        { mobile_number: { [Op.like]: `%${search}%` } },
+        { email: { [Op.like]: `%${search}%` } },
+      ];
+    }
+
+    if (date) {
+      whereClause.createdAt = {
+        [Op.gte]: dayjs(date).startOf("day").toDate(),
+        [Op.lte]: dayjs(date).endOf("day").toDate(),
+      };
+    }
 
     const { count, rows: users } = await User.findAndCountAll({
-      where: { role: "admin" },
+      where: {
+        role: "admin",
+        ...whereClause,
+      },
       limit: parseInt(limit),
       offset: parseInt(offset),
       order: [["createdAt", "DESC"]],

@@ -3,14 +3,12 @@ const joi = require("joi");
 module.exports = {
   getAdminAdsValidation: async (req, res, next) => {
     try {
-      const schema = joi
-        .object({
-          date: joi.date().optional().allow(""),
-          location: joi.string().optional().allow(""),
-          limit: joi.number().required(),
-          offset: joi.number().required(),
-        })
-        ;
+      const schema = joi.object({
+        date: joi.date().optional().allow(""),
+        location: joi.string().optional().allow(""),
+        limit: joi.number().required(),
+        offset: joi.number().required(),
+      });
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -19,11 +17,9 @@ module.exports = {
   },
   deleteAdminAdValidation: async (req, res, next) => {
     try {
-      const schema = joi
-        .object({
-          id: joi.string().required(),
-        })
-        ;
+      const schema = joi.object({
+        id: joi.string().required(),
+      });
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -32,11 +28,9 @@ module.exports = {
   },
   blockUserByIdValidation: async (req, res, next) => {
     try {
-      const schema = joi
-        .object({
-          id: joi.number().required(),
-        })
-        ;
+      const schema = joi.object({
+        id: joi.number().required(),
+      });
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -45,12 +39,10 @@ module.exports = {
   },
   makeUserAdminValidation: async (req, res, next) => {
     try {
-      const schema = joi
-        .object({
-          user_id: joi.number().required(),
-          role: joi.string().required(),
-        })
-        ;
+      const schema = joi.object({
+        user_id: joi.number().required(),
+        role: joi.string().required(),
+      });
       await schema.validateAsync(req.body);
       return next();
     } catch (error) {
@@ -59,12 +51,12 @@ module.exports = {
   },
   getSalesUsersValidation: async (req, res, next) => {
     try {
-      const schema = joi
-        .object({
-          offset: joi.number().optional(),
-          limit: joi.number().optional(),
-        })
-        ;
+      const schema = joi.object({
+        offset: joi.number().required(),
+        limit: joi.number().required(),
+        date: joi.date().optional().allow(""),
+        search: joi.string().optional().allow(""),
+      });
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -73,11 +65,9 @@ module.exports = {
   },
   getSalesUserByIdValidation: async (req, res, next) => {
     try {
-      const schema = joi
-        .object({
-          id: joi.number().required(),
-        })
-        ;
+      const schema = joi.object({
+        id: joi.number().required(),
+      });
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -108,11 +98,9 @@ module.exports = {
   },
   getAdByIdValidation: async (req, res, next) => {
     try {
-      const schema = joi
-        .object({
-          id: joi.number().required(),
-        })
-        ;
+      const schema = joi.object({
+        id: joi.number().required(),
+      });
       await schema.validateAsync(req.query);
       return next();
     } catch (error) {
@@ -151,6 +139,21 @@ module.exports = {
           }),
       });
       await schema.validateAsync(req.body);
+      return next();
+    } catch (error) {
+      return res.error(error?.message);
+    }
+  },
+
+  getAllUsersValidation: async (req, res, next) => {
+    try {
+      const schema = joi.object({
+        date: joi.date().optional().allow(""),
+        search: joi.string().optional().allow(""),
+        limit: joi.number().required(),
+        offset: joi.number().required(),
+      });
+      await schema.validateAsync(req.query);
       return next();
     } catch (error) {
       return res.error(error?.message);

@@ -79,6 +79,7 @@ module.exports = {
       const schema = joi.object({
         limit: joi.number().integer().min(1).default(10),
         offset: joi.number().integer().min(0).default(0),
+        search: joi.string().optional().allow(""),
       });
 
       await schema.validateAsync(req.query);
@@ -93,6 +94,7 @@ module.exports = {
       const schema = joi.object({
         limit: joi.number().integer().min(1).default(10),
         offset: joi.number().integer().min(0).default(0),
+        search: joi.string().optional().allow(""),
       });
 
       await schema.validateAsync(req.query);
