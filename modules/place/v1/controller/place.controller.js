@@ -57,7 +57,7 @@ const PLACE_TYPE_MAP = { region: "state", neighborhood: "locality" };
 const CTX_KEY_MAP = { street: "street", locality: "locality", place: "place", district: "district", region: "state", country: "country" };
 
 exports.getPlace = async (req, res, next) => {
-  const { longitude, latitude } = req.query;
+  const { longitude, latitude } = req.body;
 
   try {
     const response = await axios.get(
