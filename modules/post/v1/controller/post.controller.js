@@ -578,22 +578,6 @@ exports.recommentedPosts = async (req, res, next) => {
   }
 };
 
-// exports.getAllPosts = async (req, res, next) => {
-//   let posts = await Ad.findAll({
-//     where: {
-//       ad_status: "online",
-//       ad_type: "rent",
-//       ad_stage: 3,
-//     },
-//     include: [
-//       { model: User, as: "user" },
-//       { model: AdImage, as: "ad_images" },
-//       { model: AdPriceDetails, as: "ad_price_details" },
-//     ],
-//   });
-//   //   res.status(responseStatusCodes.success).json(posts);
-//   return res.success(responseMessages.allAds, posts);
-// };
 
 exports.getAllPosts = async (req, res, next) => {
   try {
@@ -651,9 +635,9 @@ exports.searchAds = async (req, res, next) => {
       ? { ad_id: Number(keyword) }
       : {
           [Op.or]: [
-            { title: { [Op.like]: `%${keyword}%` } },
-            { category: { [Op.like]: `%${keyword}%` } },
-            { description: { [Op.like]: `%${keyword}%` } },
+            { title: { [Op.like]: `${keyword}` } },
+            { category: { [Op.like]: `${keyword}` } },
+            // { description: { [Op.like]: `%${keyword}%` } },
           ],
         };
 
