@@ -21,11 +21,7 @@ process.on("uncaughtException", utils.unhandledErrorHandler);
 process.on("unhandledRejection", utils.unhandledErrorHandler);
 
 const io = socketIo(server, {
-  // origin: "*",
-  origin: [
-    "https://elkbusinesshub.com",
-    "http://localhost:3000",
-  ],
+  origin: "*",
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
@@ -39,11 +35,7 @@ const io = socketIo(server, {
 const port = process.env.PORT || 3000;
 app.use(
   cors({
-    // origin: "*",
-    origin: [
-      "https://elkbusinesshub.com",
-      "http://localhost:3000",
-    ],
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
