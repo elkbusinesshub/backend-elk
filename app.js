@@ -21,9 +21,14 @@ process.on("uncaughtException", utils.unhandledErrorHandler);
 process.on("unhandledRejection", utils.unhandledErrorHandler);
 
 const io = socketIo(server, {
-  origin: "*",
+  // origin: "*",
+  origin: [
+    "https://elkbusinesshub.com",
+    "http://localhost:3000",
+  ],
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
 });
 
 // const serviceAccount = require("./firebaseServiceAccountKey.json");
@@ -34,9 +39,14 @@ const io = socketIo(server, {
 const port = process.env.PORT || 3000;
 app.use(
   cors({
-    origin: "*",
+    // origin: "*",
+    origin: [
+      "https://elkbusinesshub.com",
+      "http://localhost:3000",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   })
 );
 
