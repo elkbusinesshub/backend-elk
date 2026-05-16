@@ -101,28 +101,52 @@ async function uploadToS3(file, fileName) {
     //     fileBuffer = await sharpInstance.toBuffer();
     //   }
     // }
-
     if (isImage) {
       const sharpInstance = sharp(file.buffer)
-        .rotate() // ✅ handles JPEG EXIF rotation
+        .rotate()
         .resize(800, 600, {
           fit: "inside",
           withoutEnlargement: true,
-        })
-        .withMetadata(); // ✅ preserves original metadata for all formats
+        });
 
       if (file.mimetype === "image/jpeg") {
         fileBuffer = await sharpInstance
-          .jpeg({ quality: 75, progressive: false, mozjpeg: true })
+          .jpeg({
+            quality: 75,
+            mozjpeg: true,
+          })
           .toBuffer();
       } else if (file.mimetype === "image/png") {
         fileBuffer = await sharpInstance
-          .png({ compressionLevel: 8, progressive: false })
+          .png({
+            compressionLevel: 8,
+          })
           .toBuffer();
       } else {
         fileBuffer = await sharpInstance.toBuffer();
       }
     }
+    // if (isImage) {
+    //   const sharpInstance = sharp(file.buffer)
+    //     .rotate() // ✅ handles JPEG EXIF rotation
+    //     .resize(800, 600, {
+    //       fit: "inside",
+    //       withoutEnlargement: true,
+    //     })
+    //     .withMetadata(); // ✅ preserves original metadata for all formats
+
+    //   if (file.mimetype === "image/jpeg") {
+    //     fileBuffer = await sharpInstance
+    //       .jpeg({ quality: 75, progressive: false, mozjpeg: true })
+    //       .toBuffer();
+    //   } else if (file.mimetype === "image/png") {
+    //     fileBuffer = await sharpInstance
+    //       .png({ compressionLevel: 8, progressive: false })
+    //       .toBuffer();
+    //   } else {
+    //     fileBuffer = await sharpInstance.toBuffer();
+    //   }
+    // }
 
     const command = new PutObjectCommand({
       Bucket: process.env.BUCKET_NAME,

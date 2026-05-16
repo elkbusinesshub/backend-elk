@@ -16,7 +16,10 @@ const {
   generateAdId,
 } = require("../../../../helpers/utils");
 require("dotenv").config();
+const path = require("path");
 const admin = require("../../../../helpers/firebase");
+const messaging = admin.messaging();
+
 const { PutObjectCommand } = require("@aws-sdk/client-s3");
 const { s3 } = require("../../../../helpers/utils");
 
@@ -199,22 +202,20 @@ const createUserAdAdmin = async (req, res, next) => {
     const uploadTasks = req.files
       .map((file) => {
         const match = file.fieldname.match(/ads\[(\d+)\]\[images\]/);
-        if (!match) return null;
-        const adIndex = Number(match[1]);
-        const fileName = `${file.originalname}`;
 
-        const command = new PutObjectCommand({
-          Bucket: process.env.BUCKET_NAME,
-          Key: fileName,
-          Body: file.buffer,
-          ContentType: file.mimetype,
-        });
+        if (!match) return null;
+
+        const adIndex = Number(match[1]);
+
+        const ext = path.extname(file.originalname);
+
+        const fileName = `${Date.now()}-${Math.random()
+          .toString(36)
+          .substring(2)}${ext}`;
 
         return {
           adIndex,
-          promise: s3.send(command).then(() => ({
-            image: fileName,
-          })),
+          promise: uploadToS3(file, fileName),
         };
       })
       .filter(Boolean);
@@ -227,7 +228,12 @@ const createUserAdAdmin = async (req, res, next) => {
       if (!ads[task.adIndex].images) {
         ads[task.adIndex].images = [];
       }
-      ads[task.adIndex].images.push(uploadResults[index].image);
+
+      if (uploadResults[index].success) {
+        ads[task.adIndex].images.push(
+          uploadResults[index].finalFilename,
+        );
+      }
     });
     const usersToNotify = await User.findAll({
       attributes: ["notification_token"],
@@ -300,7 +306,7 @@ const createUserAdAdmin = async (req, res, next) => {
 
     return res.success(responseMessages.adminusercreated);
   } catch (error) {
-    console.error(error);
+    console.log(error);
     return next(error);
   }
 };
